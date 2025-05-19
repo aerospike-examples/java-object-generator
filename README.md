@@ -81,7 +81,7 @@ Other functions include `NOW()` which returns the current timestamp in milliseco
 This annotation takes a map of values which can be specified in the calling code that can be referenced by prefixing with `$`. By default, `Key` is specified in the map which is a number used to generate the object. So if the format of your key should be `Person-1234` for example, this could be achieved by:
 
 ``` java
-@GenExpression("`Person-` & $Key")
+@GenExpression("'Person-' & $Key")
 private String id;
 ```
 
