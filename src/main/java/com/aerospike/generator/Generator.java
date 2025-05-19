@@ -98,6 +98,10 @@ public class Generator {
         return result;
     }
     
+    public <T> void generate(long startId, long endId, int threads, Class<T> clazz, Callback<T> callback) {
+        this.generate(startId, endId, threads, clazz, null, callback);
+    }
+    
     public <T> void generate(long startId, long endId, int threads, Class<T> clazz, Factory<T> factory, Callback<T> callback) {
         Factory<T> factoryToUse = factory == null ? new DefaultConstructorFactory<T>(clazz) : factory;
         ValueCreator<T> valueCreator = fetchValueCreator(clazz);

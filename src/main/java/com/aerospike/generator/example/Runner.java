@@ -6,7 +6,7 @@ public class Runner {
 
     public static void main(String[] args) throws Exception{
         Generator generator = new Generator(Member.class);
-        generator.generate(1, 10, 1, Member.class, null, 
+        generator.generate(1, 10, 1, Member.class, 
                 (member) -> System.out.println(member.toString()));
         generator.monitor();
     }
