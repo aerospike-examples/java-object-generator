@@ -15,6 +15,8 @@ import com.aerospike.generator.annotations.FieldType;
 import com.aerospike.generator.annotations.GenAddress;
 import com.aerospike.generator.annotations.GenAddress.AddressPart;
 import com.aerospike.generator.annotations.GenAddressProcessor;
+import com.aerospike.generator.annotations.GenBoolean;
+import com.aerospike.generator.annotations.GenBooleanProcessor;
 import com.aerospike.generator.annotations.GenBrowser;
 import com.aerospike.generator.annotations.GenBrowser.BrowserType;
 import com.aerospike.generator.annotations.GenBrowserProcessor;
@@ -36,6 +38,8 @@ import com.aerospike.generator.annotations.GenIpV4;
 import com.aerospike.generator.annotations.GenIpV4Processor;
 import com.aerospike.generator.annotations.GenName;
 import com.aerospike.generator.annotations.GenNameProcessor;
+import com.aerospike.generator.annotations.GenObject;
+import com.aerospike.generator.annotations.GenObjectProcessor;
 import com.aerospike.generator.annotations.GenOneOf;
 import com.aerospike.generator.annotations.GenOneOfProcessor;
 import com.aerospike.generator.annotations.GenRange;
@@ -64,12 +68,11 @@ public class ValueCreator<T> {
         // TODO Add in nested parents
     }
     
-    @SuppressWarnings("hiding")
-    private <T extends Annotation> boolean checkAndUse(boolean alreadyFound, Field field, FieldType fieldType, Class<T> annotation, Class<? extends Processor> processor) {
+    private <P extends Annotation> boolean checkAndUse(boolean alreadyFound, Field field, FieldType fieldType, Class<P> annotation, Class<? extends Processor> processor) {
         if (alreadyFound) {
             return true;
         }
-        T gen = field.getAnnotation(annotation);
+        P gen = field.getAnnotation(annotation);
         if (gen != null) {
             Constructor<? extends Processor> constructor;
             try {
@@ -89,6 +92,7 @@ public class ValueCreator<T> {
         FieldType fieldType = mapFieldType(field);
         boolean found = false;
         found = checkAndUse(found, field, fieldType, GenAddress.class, GenAddressProcessor.class);
+        found = checkAndUse(found, field, fieldType, GenBoolean.class, GenBooleanProcessor.class);
         found = checkAndUse(found, field, fieldType, GenBrowser.class, GenBrowserProcessor.class);
         found = checkAndUse(found, field, fieldType, GenBytes.class, GenBytesProcessor.class);
         found = checkAndUse(found, field, fieldType, GenDate.class, GenDateProcessor.class);
@@ -99,6 +103,7 @@ public class ValueCreator<T> {
         found = checkAndUse(found, field, fieldType, GenHexString.class, GenHexStringProcessor.class);
         found = checkAndUse(found, field, fieldType, GenIpV4.class, GenIpV4Processor.class);
         found = checkAndUse(found, field, fieldType, GenName.class, GenNameProcessor.class);
+        found = checkAndUse(found, field, fieldType, GenObject.class, GenObjectProcessor.class);
         found = checkAndUse(found, field, fieldType, GenOneOf.class, GenOneOfProcessor.class);
         found = checkAndUse(found, field, fieldType, GenRange.class, GenRangeProcessor.class);
         found = checkAndUse(found, field, fieldType, GenString.class, GenStringProcessor.class);
@@ -132,6 +137,15 @@ public class ValueCreator<T> {
         if (clazz.isEnum()) {
             return FieldType.ENUM;
         }
+        else if (Boolean.TYPE.isAssignableFrom(clazz) || Boolean.class.isAssignableFrom(clazz)) {
+            return FieldType.BOOLEAN;
+        }
+        else if (Double.TYPE.isAssignableFrom(clazz) || Double.class.isAssignableFrom(clazz)) {
+            return FieldType.DOUBLE;
+        }
+        else if (Float.TYPE.isAssignableFrom(clazz) || Float.class.isAssignableFrom(clazz)) {
+            return FieldType.FLOAT;
+        }
         else if (Integer.TYPE.isAssignableFrom(clazz) || Integer.class.isAssignableFrom(clazz)) {
             return FieldType.INTEGER;
         }
@@ -158,6 +172,9 @@ public class ValueCreator<T> {
             if (Byte.class.equals(elementType) ||  Byte.TYPE.equals(elementType)) {
                 return FieldType.BYTES;
             }
+        }
+        else if (!clazz.isPrimitive()) {
+            return FieldType.OBJECT;
         }
         return null;
     }

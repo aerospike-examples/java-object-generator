@@ -73,7 +73,6 @@ public class Generator {
             return failureCount;
         }
     }
-    private final Map<Class<?>, ValueCreator<?>> valueCreators = new ConcurrentHashMap<>();
     private long startRecord;
     private long endRecord;
     private AtomicLong started = new AtomicLong(0);
@@ -83,28 +82,17 @@ public class Generator {
     
     public Generator(Class<?> ...seedClasses) {
         for (Class<?> thisClazz : seedClasses) {
-            ValueCreator<?> valueCreator = new ValueCreator<>(thisClazz);
-            this.valueCreators.put(thisClazz, valueCreator);
+            ValueCreatorCache.getInstance().get(thisClazz);
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private synchronized <T> ValueCreator<T> fetchValueCreator(Class<T> clazz) {
-        ValueCreator<T> result = (ValueCreator<T>) this.valueCreators.get(clazz);
-        if (result == null) {
-            result = new ValueCreator<>(clazz);
-            valueCreators.put(clazz, result);
-        }
-        return result;
-    }
-    
     public <T> void generate(long startId, long endId, int threads, Class<T> clazz, Callback<T> callback) {
         this.generate(startId, endId, threads, clazz, null, callback);
     }
     
     public <T> void generate(long startId, long endId, int threads, Class<T> clazz, Factory<T> factory, Callback<T> callback) {
         Factory<T> factoryToUse = factory == null ? new DefaultConstructorFactory<T>(clazz) : factory;
-        ValueCreator<T> valueCreator = fetchValueCreator(clazz);
+        ValueCreator<T> valueCreator = ValueCreatorCache.getInstance().get(clazz);
         executor = Executors.newFixedThreadPool(threads);
         startRecord = startId;
         endRecord = endId;

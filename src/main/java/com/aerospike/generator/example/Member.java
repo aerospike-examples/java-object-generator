@@ -12,6 +12,7 @@ import com.aerospike.generator.annotations.GenExpression;
 import com.aerospike.generator.annotations.GenIpV4;
 import com.aerospike.generator.annotations.GenName;
 import com.aerospike.generator.annotations.GenName.NameType;
+import com.aerospike.generator.annotations.GenObject;
 import com.aerospike.generator.annotations.GenOneOf;
 import com.aerospike.generator.annotations.GenRange;
 import com.aerospike.generator.annotations.GenString;
@@ -65,11 +66,17 @@ public class Member {
     int familyMembers;
     @GenIpV4
     String ipAddress;
+    @GenDate(start = "now", end = "now")
+    long updatedAt;
     
     // Dummy strings to be filled by the default 
     String dummy1;
     String dummy2;
     String dummy3;
+    
+    // Nested object
+    @GenObject
+    Address address;
     
     public String getId() {
         return id;
@@ -166,6 +173,7 @@ public class Member {
                 + ", line1=" + line1 + ", line2=" + line2 + ", city=" + city + ", country=" + country + ", state="
                 + state + ", licensePlate=" + licensePlate + ", employer=" + employer + ", extId=" + extId
                 + ", lastUpdate=" + lastUpdate + ", familyMembers=" + familyMembers + ", ipAddress=" + ipAddress
-                + ", dummy1=" + dummy1 + ", dummy2=" + dummy2 + ", dummy3=" + dummy3 + "]";
+                + ", updatedAt=" + updatedAt + ", dummy1=" + dummy1 + ", dummy2=" + dummy2 + ", dummy3=" + dummy3 
+                + ", address=" + address + "]";
     }
  }
