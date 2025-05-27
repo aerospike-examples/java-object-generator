@@ -76,7 +76,10 @@ public class Member {
     
     // Nested object
     @GenObject
-    Address address;
+    private Address address;
+    
+    @GenObject(percentNull = 20, subclasses = {CheckingAccount.class, SavingsAccount.class})
+    private Account account;
     
     public String getId() {
         return id;
@@ -174,6 +177,6 @@ public class Member {
                 + state + ", licensePlate=" + licensePlate + ", employer=" + employer + ", extId=" + extId
                 + ", lastUpdate=" + lastUpdate + ", familyMembers=" + familyMembers + ", ipAddress=" + ipAddress
                 + ", updatedAt=" + updatedAt + ", dummy1=" + dummy1 + ", dummy2=" + dummy2 + ", dummy3=" + dummy3 
-                + ", address=" + address + "]";
+                + ", address=" + address + ", account=" + account + "]";
     }
  }

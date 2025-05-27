@@ -1,8 +1,7 @@
 package com.aerospike.generator.annotations;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -12,8 +11,8 @@ import com.aerospike.generator.ValueCreatorCache;
 public class GenObjectProcessor<T> implements Processor {
 
     private final ValueCreator<T> valueCreator;
-    private final Constructor<T> constructor;
     private final int percentNull;
+    private final Class<?> subclasses[];
     
     @SuppressWarnings("unchecked")
     public GenObjectProcessor(GenObject genObject, FieldType fieldType, Field field) {
@@ -22,25 +21,35 @@ public class GenObjectProcessor<T> implements Processor {
         }
         Class<T> clazz = (Class<T>) field.getType();
         this.valueCreator = (ValueCreator<T>) ValueCreatorCache.getInstance().get(clazz);
-        try {
-            this.constructor = (Constructor<T>) clazz.getConstructor();
-        } catch (NoSuchMethodException | SecurityException e) {
-            throw new IllegalArgumentException("Class " + clazz + " does not have the required no-arg constructor");
-        }
+        this.valueCreator.requiresConstructor();
         this.percentNull = Math.min(100, Math.max(0, genObject.percentNull()));
+        this.subclasses = genObject.subclasses();
+        for (Class<?> subclass : subclasses) {
+            if (!clazz.isAssignableFrom(subclass)) {
+                throw new IllegalArgumentException(String.format("Class % is listed as a subclass on field %s of class %s, but is not a subclass",
+                        subclass.getName(), field.getName(), clazz.getName()));
+            }
+            if (Modifier.isAbstract(subclass.getModifiers())) {
+                throw new IllegalArgumentException(String.format("Class % is listed as a subclass on field %s of class %s, but is abstract. Only concrete classes can be listed",
+                        subclass.getName(), field.getName(), clazz.getName()));
+            }
+            // Make sure this subclass in in the cache
+            ValueCreatorCache.getInstance().get(subclass);
+        }
     }
     
     @Override
     public Object process(Map<String, Object> params) {
-        try {
-            if (ThreadLocalRandom.current().nextInt(101) < this.percentNull) {
-                return null;
-            }
-            T result = this.constructor.newInstance();
-            this.valueCreator.populate(result, params);
-            return result;
-        } catch (IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException e) {
-            throw new IllegalArgumentException(e.getMessage(), e);
+        if (ThreadLocalRandom.current().nextInt(101) < this.percentNull) {
+            return null;
+        }
+        if (subclasses.length == 0) {
+            return this.valueCreator.createAndPopulate(params);
+        }
+        else {
+            Class<?> subclass = subclasses[ThreadLocalRandom.current().nextInt(subclasses.length)];
+            ValueCreator<?> creator = ValueCreatorCache.getInstance().get(subclass);
+            return creator.createAndPopulate(params);
         }
     }
     @Override

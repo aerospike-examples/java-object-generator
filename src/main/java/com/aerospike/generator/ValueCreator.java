@@ -4,6 +4,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -38,6 +39,8 @@ import com.aerospike.generator.annotations.GenIpV4;
 import com.aerospike.generator.annotations.GenIpV4Processor;
 import com.aerospike.generator.annotations.GenName;
 import com.aerospike.generator.annotations.GenNameProcessor;
+import com.aerospike.generator.annotations.GenNumber;
+import com.aerospike.generator.annotations.GenNumberProcessor;
 import com.aerospike.generator.annotations.GenObject;
 import com.aerospike.generator.annotations.GenObjectProcessor;
 import com.aerospike.generator.annotations.GenOneOf;
@@ -59,15 +62,60 @@ import com.aerospike.generator.annotations.Processor;
 public class ValueCreator<T> {
     
     private final Map<Field, Processor> fieldProcessors = new ConcurrentHashMap<>();
+    private final ValueCreator<Object> superclazz;
+    private final Constructor<T> constructor;
+    private final Class<T> clazz;
 
-    public ValueCreator(Class<?> clazz) {
+    public ValueCreator(Class<T> clazz) {
+        this.clazz = clazz;
         Field[] fields = clazz.getDeclaredFields();
         for (Field field : fields) {
-            addProcessorForField(field);
+            // Note: Deliberately allowing setting of final fields
+            if (!Modifier.isTransient(field.getModifiers())) {
+                addProcessorForField(field);
+            }
         }
-        // TODO Add in nested parents
+        Class<?> mySuperClazz = clazz.getSuperclass();
+        String superclassPackage = mySuperClazz.getPackageName();
+        if (superclassPackage != null && !(superclassPackage.startsWith("java.lang") || superclassPackage.startsWith("java.util"))) {
+            superclazz = (ValueCreator<Object>) ValueCreatorCache.getInstance().get(mySuperClazz);
+        }
+        else {
+            superclazz = null;
+        }
+        
+        Constructor<T> theConstructor = null;
+        try {
+            theConstructor = (Constructor<T>) clazz.getConstructor();
+        } catch (NoSuchMethodException | SecurityException e) {
+        }
+        this.constructor = theConstructor;
     }
     
+    public void requiresConstructor() {
+        if (this.constructor == null) {
+            throw new IllegalArgumentException("Class " + clazz + " does not have the required no-arg constructor");
+        }
+    }
+    
+    public T create() {
+        requiresConstructor();
+        try {
+            return this.constructor.newInstance();
+        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+                | InvocationTargetException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+    }
+    
+    public T createAndPopulate(Map<String, Object> params) {
+        T obj = create();
+        try {
+            return populate(obj, params);
+        } catch (IllegalArgumentException | IllegalAccessException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+    }
     private <P extends Annotation> boolean checkAndUse(boolean alreadyFound, Field field, FieldType fieldType, Class<P> annotation, Class<? extends Processor> processor) {
         if (alreadyFound) {
             return true;
@@ -103,6 +151,7 @@ public class ValueCreator<T> {
         found = checkAndUse(found, field, fieldType, GenHexString.class, GenHexStringProcessor.class);
         found = checkAndUse(found, field, fieldType, GenIpV4.class, GenIpV4Processor.class);
         found = checkAndUse(found, field, fieldType, GenName.class, GenNameProcessor.class);
+        found = checkAndUse(found, field, fieldType, GenNumber.class, GenNumberProcessor.class);
         found = checkAndUse(found, field, fieldType, GenObject.class, GenObjectProcessor.class);
         found = checkAndUse(found, field, fieldType, GenOneOf.class, GenOneOfProcessor.class);
         found = checkAndUse(found, field, fieldType, GenRange.class, GenRangeProcessor.class);
@@ -185,6 +234,9 @@ public class ValueCreator<T> {
     public T populate(T object, Map<String, Object> params) throws IllegalArgumentException, IllegalAccessException {
         for (Field field : fieldProcessors.keySet()) {
             field.set(object, fieldProcessors.get(field).process(params));
+        }
+        if (superclazz != null) {
+            superclazz.populate(object, params);
         }
         return object;
     }

@@ -23,6 +23,10 @@ public class ValueCreatorCache {
     }
     
     public <T> ValueCreator<T> get(Class<T> clazz) {
+        if (clazz == null || clazz.equals(Object.class)) {
+            return null;
+        }
+        
         ValueCreator<T> result = getValueCreator(clazz);
         if (result == null) {
             result = new ValueCreator<>(clazz);
