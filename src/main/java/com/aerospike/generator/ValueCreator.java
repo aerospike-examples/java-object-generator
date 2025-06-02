@@ -37,6 +37,8 @@ import com.aerospike.generator.annotations.GenHexString;
 import com.aerospike.generator.annotations.GenHexStringProcessor;
 import com.aerospike.generator.annotations.GenIpV4;
 import com.aerospike.generator.annotations.GenIpV4Processor;
+import com.aerospike.generator.annotations.GenMagic;
+import com.aerospike.generator.annotations.GenMagicProcessor;
 import com.aerospike.generator.annotations.GenName;
 import com.aerospike.generator.annotations.GenNameProcessor;
 import com.aerospike.generator.annotations.GenNumber;
@@ -137,6 +139,7 @@ public class ValueCreator<T> {
     }
     
     private void addProcessorForField(Field field) {
+        Class<?> clazz = field.getDeclaringClass();
         FieldType fieldType = mapFieldType(field);
         boolean found = false;
         found = checkAndUse(found, field, fieldType, GenAddress.class, GenAddressProcessor.class);
@@ -158,8 +161,16 @@ public class ValueCreator<T> {
         found = checkAndUse(found, field, fieldType, GenString.class, GenStringProcessor.class);
         found = checkAndUse(found, field, fieldType, GenUuid.class, GenUuidProcessor.class);
         
+        
         if (!found) {
-            Class<?> clazz = field.getDeclaringClass();
+            GenMagic genMagic = clazz.getAnnotation(GenMagic.class);
+            if (genMagic != null) {
+                Processor processor = new GenMagicProcessor(genMagic, fieldType, field);
+                fieldProcessors.put(field, processor);
+                found = true;
+            }
+        }
+        if (!found) {
             GenString genString = clazz.getAnnotation(GenString.class);
             if (genString != null && field.getType().isAssignableFrom(String.class)) {
                 Processor processor = new GenStringProcessor(genString, fieldType, field);
@@ -168,7 +179,6 @@ public class ValueCreator<T> {
             }
         }
         if (!found) {
-            Class<?> clazz = field.getDeclaringClass();
             GenExpression genExpr = clazz.getAnnotation(GenExpression.class);
             if (genExpr != null && field.getType().isAssignableFrom(String.class)) {
                 Processor processor = new GenExpressionProcessor(genExpr, fieldType, field);

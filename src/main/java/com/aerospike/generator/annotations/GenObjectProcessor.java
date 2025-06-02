@@ -12,18 +12,24 @@ public class GenObjectProcessor<T> implements Processor {
 
     private final ValueCreator<T> valueCreator;
     private final int percentNull;
-    private final Class<?> subclasses[];
+    private final Class<?>[] subclasses;
     
-    @SuppressWarnings("unchecked")
     public GenObjectProcessor(GenObject genObject, FieldType fieldType, Field field) {
+        this(genObject.subclasses(), genObject.percentNull(), fieldType, field);
+    }
+    @SuppressWarnings("unchecked")
+    public GenObjectProcessor(Class<?>[] subclasses, int percentNull, FieldType fieldType, Field field) {
         if (!supports(fieldType) ) {
             throw new IllegalArgumentException("Unsupported field type " + fieldType);
         }
         Class<T> clazz = (Class<T>) field.getType();
         this.valueCreator = (ValueCreator<T>) ValueCreatorCache.getInstance().get(clazz);
         this.valueCreator.requiresConstructor();
-        this.percentNull = Math.min(100, Math.max(0, genObject.percentNull()));
-        this.subclasses = genObject.subclasses();
+        this.percentNull = Math.min(100, Math.max(0, percentNull));
+        if (subclasses == null) {
+            subclasses = new Class<?>[0];
+        }
+        this.subclasses = subclasses;
         for (Class<?> subclass : subclasses) {
             if (!clazz.isAssignableFrom(subclass)) {
                 throw new IllegalArgumentException(String.format("Class % is listed as a subclass on field %s of class %s, but is not a subclass",

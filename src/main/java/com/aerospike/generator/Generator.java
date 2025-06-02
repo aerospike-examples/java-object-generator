@@ -3,7 +3,6 @@ package com.aerospike.generator;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -86,19 +85,20 @@ public class Generator {
         }
     }
 
-    public <T> void generate(long startId, long endId, int threads, Class<T> clazz, Callback<T> callback) {
-        this.generate(startId, endId, threads, clazz, null, callback);
+    public <T> Generator generate(long startId, long endId, int threads, Class<T> clazz, Callback<T> callback) {
+        return this.generate(startId, endId, threads, clazz, null, callback);
     }
     
-    public <T> void generate(long startId, long endId, int threads, Class<T> clazz, Factory<T> factory, Callback<T> callback) {
+    public <T> Generator generate(long startId, long endId, int threads, Class<T> clazz, Factory<T> factory, Callback<T> callback) {
         Factory<T> factoryToUse = factory == null ? new DefaultConstructorFactory<T>(clazz) : factory;
         ValueCreator<T> valueCreator = ValueCreatorCache.getInstance().get(clazz);
-        executor = Executors.newFixedThreadPool(threads);
+        int threadsToUse = threads <= 0 ? Runtime.getRuntime().availableProcessors() : threads;
+        executor = Executors.newFixedThreadPool(threadsToUse);
         startRecord = startId;
         endRecord = endId;
         started.set(startId);
         
-        for (int i = 0; i < threads; i++) {
+        for (int i = 0; i < threadsToUse; i++) {
             executor.submit(() -> {
                 while (true) {
                     long id = started.getAndIncrement();
@@ -122,6 +122,7 @@ public class Generator {
         }
         
         executor.shutdown();
+        return this;
     }
     
     public MonitorStats getMontiorStats() {

@@ -1,6 +1,17 @@
 # java-object-generator
 This repository allows Java POJOs to have sample data generated for them. Control of the generated data is done by annotating the business objects, and multiple different annotations are supported for flexibility of data generated.
 
+## Installing
+This repository does not currently reside on maven central, so needs to be installed on a local maven repsoitory.
+
+This can be achieved by:
+
+```
+cd java-object-generator
+mvn clean package
+mvn install:install-file -Dfile=<path-to-file -DgroupId=<group-id> -DartifactId=<artifact-id> -Dversion=<version> -Dpackaging=<packaging>
+```
+
 Supported annotations include:
 
 ## Supported Annoations
