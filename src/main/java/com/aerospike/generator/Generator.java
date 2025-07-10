@@ -2,6 +2,7 @@ package com.aerospike.generator;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -9,6 +10,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class Generator {
 
+    public interface MonitorCallback {
+        String addExtraInfo();
+    }
+    
     public interface Callback<T> {
         void process(T t);
     }
@@ -106,7 +111,9 @@ public class Generator {
                         break;
                     }
                     try {
-                        Map<String, Object> params = Map.of("Key", id);
+                        // The map must be mutable, so cannot use Map.of
+                        Map<String, Object> params = new HashMap<>();
+                        params.put("Key", id);
                         T object = factoryToUse.create(id);
                         valueCreator.populate(object, params);
                         callback.process(object);
@@ -128,15 +135,20 @@ public class Generator {
     public MonitorStats getMontiorStats() {
         return new MonitorStats(startRecord, endRecord, started.get(), success.get(), errors.get());
     }
-    
+
     public void monitor() throws InterruptedException {
+        this.monitor(null);
+    }
+    public void monitor(MonitorCallback extraInfo) throws InterruptedException {
         long now = System.currentTimeMillis();
         while (!isComplete()) {
             Thread.sleep(1000);
             MonitorStats stats = getMontiorStats();
-            System.out.printf("[%,dms] %,d successful, %,d failed, %,.1f%% done\n",
+            String extraInfoStr = extraInfo == null ? "" : extraInfo.addExtraInfo();
+            System.out.printf("[%,dms] %,d successful, %,d failed, %,.1f%% done %s\n",
                     (System.currentTimeMillis() - now), stats.getSuccessCount(), stats.getFailureCount(), 
-                    100.0*(stats.getSuccessCount() + stats.getFailureCount())/(1+stats.getEndRecord()-stats.getStartRecord()));
+                    100.0*(stats.getSuccessCount() + stats.getFailureCount())/(1+stats.getEndRecord()-stats.getStartRecord()),
+                    extraInfoStr);
         }
     }
 

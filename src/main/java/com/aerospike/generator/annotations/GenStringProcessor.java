@@ -61,12 +61,7 @@ public class GenStringProcessor implements Processor {
     }
 
     private int getLengthToGenerate() {
-        if (length >= 0) {
-            return length;
-        }
-        else {
-            return ThreadLocalRandom.current().nextInt(minLength, maxLength +1);
-        }
+        return Processor.getLengthToGenerate(length, minLength, maxLength);
     }
     
     @Override

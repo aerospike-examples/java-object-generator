@@ -293,7 +293,7 @@ public class ExpressionParser {
                 case '$':
                     pos++;
                     StringBuilder param = new StringBuilder();
-                    while (pos < input.length() && Character.isLetterOrDigit(input.charAt(pos))) {
+                    while (pos < input.length() && (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '.')) {
                         param.append(input.charAt(pos++));
                     }
                     currentToken = new Token(TokenType.PARAMETER, param.toString());
@@ -519,9 +519,11 @@ public class ExpressionParser {
     public static void main(String[] args) {
         Map<String, Object> params = new HashMap<>();
         params.put("key", 12L);
+        params.put("key.device", 3L);
 
         // Example expressions
         String[] expressions = {
+            "$key.device",
             "2 + 3 * 4",
             "$key * 2 + 5",
             "'Hello' & 'World-' & $key",

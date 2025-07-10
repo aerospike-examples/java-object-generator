@@ -1,5 +1,6 @@
 package com.aerospike.generator;
 
+import java.awt.List;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -37,6 +38,8 @@ import com.aerospike.generator.annotations.GenHexString;
 import com.aerospike.generator.annotations.GenHexStringProcessor;
 import com.aerospike.generator.annotations.GenIpV4;
 import com.aerospike.generator.annotations.GenIpV4Processor;
+import com.aerospike.generator.annotations.GenList;
+import com.aerospike.generator.annotations.GenListProcessor;
 import com.aerospike.generator.annotations.GenMagic;
 import com.aerospike.generator.annotations.GenMagicProcessor;
 import com.aerospike.generator.annotations.GenName;
@@ -153,6 +156,7 @@ public class ValueCreator<T> {
         found = checkAndUse(found, field, fieldType, GenExpression.class, GenExpressionProcessor.class);
         found = checkAndUse(found, field, fieldType, GenHexString.class, GenHexStringProcessor.class);
         found = checkAndUse(found, field, fieldType, GenIpV4.class, GenIpV4Processor.class);
+        found = checkAndUse(found, field, fieldType, GenList.class, GenListProcessor.class);
         found = checkAndUse(found, field, fieldType, GenName.class, GenNameProcessor.class);
         found = checkAndUse(found, field, fieldType, GenNumber.class, GenNumberProcessor.class);
         found = checkAndUse(found, field, fieldType, GenObject.class, GenObjectProcessor.class);
@@ -231,6 +235,12 @@ public class ValueCreator<T> {
             if (Byte.class.equals(elementType) ||  Byte.TYPE.equals(elementType)) {
                 return FieldType.BYTES;
             }
+            else {
+                return FieldType.LIST;
+            }
+        }
+        else if (List.class.isAssignableFrom(clazz)) {
+            return FieldType.LIST;
         }
         else if (!clazz.isPrimitive()) {
             return FieldType.OBJECT;

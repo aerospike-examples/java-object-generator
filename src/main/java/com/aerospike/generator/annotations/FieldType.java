@@ -13,5 +13,6 @@ public enum FieldType {
     LONG, 
     OBJECT,
     STRING, 
-    UUID
+    UUID,
+    LIST
 }

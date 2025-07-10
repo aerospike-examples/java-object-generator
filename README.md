@@ -9,7 +9,7 @@ This can be achieved by:
 ```
 cd java-object-generator
 mvn clean package
-mvn install:install-file -Dfile=<path-to-file -DgroupId=<group-id> -DartifactId=<artifact-id> -Dversion=<version> -Dpackaging=<packaging>
+mvn install:install-file -Dfile=target/java-object-generator-0.9-full.jar -DgroupId=com.aerospike -DartifactId=java-object-generator -Dverions=0.9 -Dpackaging=jar
 ```
 
 Supported annotations include:
