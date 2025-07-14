@@ -19,7 +19,6 @@ public class GenIpV4Processor implements Processor {
     public Object process(Map<String, Object> params) {
         return internet.ipV4Address();
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.STRING;
     }

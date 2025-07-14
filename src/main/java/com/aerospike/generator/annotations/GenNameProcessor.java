@@ -36,7 +36,6 @@ public class GenNameProcessor implements Processor {
         default: return name.fullName();
         }
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.STRING;
     }

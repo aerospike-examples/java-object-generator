@@ -35,7 +35,6 @@ public class GenBrowserProcessor implements Processor {
             return userAgents[ThreadLocalRandom.current().nextInt(userAgents.length)].toString();
         }
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.STRING;
     }

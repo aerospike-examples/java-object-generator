@@ -31,7 +31,6 @@ public class GenBooleanProcessor implements Processor {
             return list.selectRandom();
         }
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.BOOLEAN;
     }

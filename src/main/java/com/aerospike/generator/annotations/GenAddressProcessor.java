@@ -44,7 +44,6 @@ public class GenAddressProcessor implements Processor {
         default:                return address.fullAddress();
         }
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.STRING;
     }

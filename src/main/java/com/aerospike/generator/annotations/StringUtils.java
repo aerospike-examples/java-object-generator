@@ -6,7 +6,8 @@ import java.util.Set;
 
 public class StringUtils {
     /**
-     * Returns if the word in the @{code listOfWords} at the passed index is contained in the @{code wordsToMatch} set. </p>
+     * Returns if the word in the @{code listOfWords} at the passed index is contained in the @{code wordsToMatch} set.
+     * Note that the index can be negative, so -1 would be the last word in the sequence </p>
      * For example, 
      * @param index
      * @param listOfWords
@@ -24,6 +25,25 @@ public class StringUtils {
 
     public static boolean isLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
         return isWordOneOf(-1, listOfWords, wordsToMatch);
+    }
+
+    public static boolean isFirstOrLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
+        if (listOfWords.size() == 1) {
+            return isFirstWordOneOf(listOfWords, wordsToMatch);
+        }
+        return isWordOneOf(-1, listOfWords, wordsToMatch) ||
+                isWordOneOf(0, listOfWords, wordsToMatch);
+    }
+
+    public static boolean isFirstWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
+        return isWordOneOf(0, listOfWords, wordsToMatch);
+    }
+
+    public static boolean areLastTwoWordsOneOf(List<String> listOfWords, 
+            Set<String> secondLastWordsToMatch, Set<String> lastWordsToMatch) {
+        return listOfWords.size() >= 2 && 
+                isWordOneOf(-2, listOfWords, secondLastWordsToMatch) &&
+                isWordOneOf(-1, listOfWords, lastWordsToMatch);
     }
 
     /**
@@ -44,6 +64,10 @@ public class StringUtils {
             return false;
         }
         for (int i = 0; i < words.size(); i++) {
+            if (wordSets[i] == null) {
+                // Null is a "match anything" prefix
+                continue;
+            }
             if (!isWordOneOf(i, words, wordSets[i])) {
                 return false;
             }
@@ -132,6 +156,15 @@ public class StringUtils {
             currentWordList.add(currentWord.toString().toLowerCase());
         }
         return currentWordList;
+    }
+    
+    public static String makePossessive(String word) {
+        if (word.endsWith("s")) {
+            return word + "'";
+        }
+        else {
+            return word + "'s";
+        }
     }
 
     public static void main(String[] args) throws Exception {

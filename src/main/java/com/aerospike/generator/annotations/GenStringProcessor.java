@@ -84,7 +84,6 @@ public class GenStringProcessor implements Processor {
         }
     }
     
-    @Override
     public boolean supports(FieldType fieldType) {
         switch (fieldType) {
         case STRING:

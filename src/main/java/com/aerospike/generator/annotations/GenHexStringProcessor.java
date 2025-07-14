@@ -60,7 +60,6 @@ public class GenHexStringProcessor implements Processor {
         return sb.toString();
     }
     
-    @Override
     public boolean supports(FieldType fieldType) {
         switch (fieldType) {
         case STRING:

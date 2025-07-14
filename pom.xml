@@ -3,11 +3,12 @@
   <groupId>com.aerospike</groupId>
   <artifactId>java-object-generator</artifactId>
   <version>0.9</version>
+  <packaging>jar</packaging>
   <name>Test Data Generator</name>
   <description>Generate test data for business objects based on annotation</description>
   
 	<properties>
-		<aerospike-client.verion>9.0.3</aerospike-client.verion>
+		<aerospike-client.version>9.0.5</aerospike-client.version>
   		<jackson-dataformat-yaml.version>2.14.2</jackson-dataformat-yaml.version>
 		<junit-jupiter.version>5.9.2</junit-jupiter.version>
 		<commons-cli.version>1.4</commons-cli.version>
@@ -19,7 +20,7 @@
       <dependency>
         <groupId>com.aerospike</groupId>
         <artifactId>aerospike-client-jdk8</artifactId>
-        <version>${aerospike-client.verion}</version>
+        <version>${aerospike-client.version}</version>
       </dependency>
 		<!-- https://mvnrepository.com/artifact/com.github.javafaker/javafaker -->
 		<dependency>
@@ -52,14 +53,28 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>3.10.1</version>
 				<configuration>
 					<source>11</source>
 					<target>11</target>
 				</configuration>
 			</plugin>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.2.2</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.3.0</version>
 				<configuration>
 					<descriptorRefs>
 						<descriptorRef>jar-with-dependencies</descriptorRef>
@@ -67,13 +82,12 @@
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
-							<mainClass>com.aerospike.generator.example.Runnerr</mainClass>
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
 						</manifest>
 					</archive>
-					<finalName>${project.artifactId}-${project.version}-full</finalName>
-					<appendAssemblyId>false</appendAssemblyId>
+					<finalName>${project.artifactId}-${project.version}</finalName>
+					<appendAssemblyId>true</appendAssemblyId>
 				</configuration>
 				<executions>
 					<execution>

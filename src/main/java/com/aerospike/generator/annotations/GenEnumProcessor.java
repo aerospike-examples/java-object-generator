@@ -24,7 +24,6 @@ public class GenEnumProcessor implements Processor {
     public Object process(Map<String, Object> params) {
         return enumConstants[ThreadLocalRandom.current().nextInt(enumConstants.length)];
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.ENUM;
     }

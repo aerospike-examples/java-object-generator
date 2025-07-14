@@ -2,6 +2,7 @@ package com.aerospike.generator.annotations;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -239,6 +240,20 @@ public class ExpressionParser {
                     padded.append(strValue);
                     return padded.toString();
 
+                case "UUID":
+                    if (args.length == 0) {
+                        return UUID.randomUUID().toString();
+                    }
+                    else if (args.length == 1) {
+                        Object modifier = args[0].accept(this);
+                        long longVal = toLong(modifier);
+                        String baseUuid = String.format("01234567-890a-bcde-f012-%012d", longVal);
+                        return baseUuid;
+                    }
+                    else {
+                        throw new IllegalArgumentException("UUID() takes 0 or 1 arguments");
+                    }
+                    
                 default:
                     throw new IllegalArgumentException("Unknown function: " + name);
             }
@@ -539,16 +554,20 @@ public class ExpressionParser {
             "PAD($key, 4, '0')",
             "PAD($key, 8, '-')",
             "PAD($key, 8, '-') +3",
+            "UUID()",
+            "UUID(1)",
+            "UUID(1234567)",
+            "UUID($key)"
         };
 
         ExpressionParser parser = new ExpressionParser();
         for (String expr : expressions) {
             try {
                 System.out.println("Expression: " + expr);
-                Object o = parser.evaluate(expr, params, false);
-                System.out.println("Numeric result: " + o + " of type " + o.getClass());
-                o = parser.evaluate(expr, params, true);
+                Object o = parser.evaluate(expr, params, true);
                 System.out.println("String result: " + o + " of type " + o.getClass());
+                o = parser.evaluate(expr, params, false);
+                System.out.println("Numeric result: " + o + " of type " + o.getClass());
                 System.out.println();
             } catch (Exception e) {
                 System.out.println("Error: " + e.getMessage());

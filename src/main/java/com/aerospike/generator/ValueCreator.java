@@ -81,14 +81,18 @@ public class ValueCreator<T> {
             }
         }
         Class<?> mySuperClazz = clazz.getSuperclass();
-        String superclassPackage = mySuperClazz.getPackageName();
-        if (superclassPackage != null && !(superclassPackage.startsWith("java.lang") || superclassPackage.startsWith("java.util"))) {
-            superclazz = (ValueCreator<Object>) ValueCreatorCache.getInstance().get(mySuperClazz);
+        if (mySuperClazz != null) {
+            String superclassPackage = mySuperClazz.getPackageName();
+            if (superclassPackage != null && !(superclassPackage.startsWith("java.lang") || superclassPackage.startsWith("java.util"))) {
+                superclazz = (ValueCreator<Object>) ValueCreatorCache.getInstance().get(mySuperClazz);
+            }
+            else {
+                superclazz = null;
+            }
         }
         else {
             superclazz = null;
         }
-        
         Constructor<T> theConstructor = null;
         try {
             theConstructor = (Constructor<T>) clazz.getConstructor();

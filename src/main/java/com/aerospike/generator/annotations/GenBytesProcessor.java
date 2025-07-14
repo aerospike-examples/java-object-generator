@@ -49,7 +49,6 @@ public class GenBytesProcessor implements Processor {
         return bytes;
     }
     
-    @Override
     public boolean supports(FieldType fieldType) {
         switch (fieldType) {
         case BYTES:

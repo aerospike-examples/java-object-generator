@@ -181,7 +181,6 @@ public class GenListProcessor<T> implements Processor {
             return list;
         }
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.OBJECT;
     }

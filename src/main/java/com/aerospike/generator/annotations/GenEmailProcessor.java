@@ -19,7 +19,6 @@ public class GenEmailProcessor implements Processor {
     public Object process(Map<String, Object> params) {
         return internet.emailAddress();
     }
-    @Override
     public boolean supports(FieldType fieldType) {
         return fieldType == FieldType.STRING;
     }
