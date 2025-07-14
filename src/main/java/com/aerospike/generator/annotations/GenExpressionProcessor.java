@@ -2,6 +2,7 @@ package com.aerospike.generator.annotations;
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.UUID;
 
 import com.aerospike.generator.annotations.ExpressionParser.Node;
 
@@ -23,7 +24,7 @@ public class GenExpressionProcessor implements Processor {
         }
         this.parser = new ExpressionParser();
         this.abstractSyntaxTree = parser.parseExpression(value);
-        this.returnString = (fieldType == FieldType.STRING);
+        this.returnString = (fieldType == FieldType.STRING || fieldType == FieldType.UUID);
         
         if (!returnString) {
             // Give a quick test to ensure a number is returned
@@ -39,6 +40,8 @@ public class GenExpressionProcessor implements Processor {
             return (int)(long)result;
         case LONG:
             return (long)result;
+        case UUID:
+            return UUID.fromString((String)result);
         default:
             return result;
         }
@@ -49,6 +52,7 @@ public class GenExpressionProcessor implements Processor {
         case INTEGER:
         case LONG:
         case STRING:
+        case UUID:
             return true;
         default: 
             return false;
