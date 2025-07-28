@@ -48,7 +48,7 @@ public class GenListProcessor<T> implements Processor {
         this.items = items;
         
         if (items < 0 && (minItems < 0 || maxItems < 0)) {
-            throw new IllegalArgumentException("Either lenitemsgth must be specified or both minItems and maxItems");
+            throw new IllegalArgumentException("Either items must be specified or both minItems and maxItems");
         }
         if (items >= 0) {
             if (minItems >= 0 || maxItems >= 0) {
