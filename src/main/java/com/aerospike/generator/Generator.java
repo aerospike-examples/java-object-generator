@@ -91,16 +91,27 @@ public class Generator {
     }
 
     public <T> Generator generate(long startId, long endId, Class<T> clazz, Callback<T> callback) {
-        return this.generate(startId, endId, 0, clazz, null, callback);
+        return this.generate(startId, endId, 0, clazz, null, null, callback);
+    }
+
+    public <T> Generator generate(long startId, long endId, Class<T> clazz, Map<String, Object> paramMap, Callback<T> callback) {
+        return this.generate(startId, endId, 0, clazz, null, paramMap, callback);
     }
 
     public <T> Generator generate(long startId, long endId, int threads, Class<T> clazz, Callback<T> callback) {
-        return this.generate(startId, endId, threads, clazz, null, callback);
+        return this.generate(startId, endId, threads, clazz, null, null, callback);
     }
     
-    public <T> Generator generate(long startId, long endId, int threads, Class<T> clazz, Factory<T> factory, Callback<T> callback) {
+    public <T> Generator generate(long startId, long endId, int threads, Class<T> clazz, Map<String, Object> paramMap, Callback<T> callback) {
+        return this.generate(startId, endId, threads, clazz, null, paramMap, callback);
+    }
+    
+    public <T> Generator generate(long startId, long endId, int threads, Class<T> clazz, 
+            Factory<T> factory, Map<String, Object> paramMap,Callback<T> callback) {
+        
         Factory<T> factoryToUse = factory == null ? new DefaultConstructorFactory<T>(clazz) : factory;
         ValueCreator<T> valueCreator = ValueCreatorCache.getInstance().get(clazz);
+        Map<String, Object> params = paramMap == null ? new HashMap<>(paramMap) : new HashMap<>(); 
         int threadsToUse = threads <= 0 ? Runtime.getRuntime().availableProcessors() : threads;
         this.started.set(0);
         this.success.set(0);
@@ -118,8 +129,6 @@ public class Generator {
                         break;
                     }
                     try {
-                        // The map must be mutable, so cannot use Map.of
-                        Map<String, Object> params = new HashMap<>();
                         params.put("Key", id);
                         T object = factoryToUse.create(id);
                         valueCreator.populate(object, params);

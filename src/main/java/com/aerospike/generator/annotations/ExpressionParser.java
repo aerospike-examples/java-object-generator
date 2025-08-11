@@ -1,12 +1,14 @@
 package com.aerospike.generator.annotations;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ExpressionParser {
     // Node interface for the AST
@@ -21,6 +23,7 @@ public class ExpressionParser {
         T visitBinary(BinaryOp op, Node left, Node right);
         T visitParameter(String name);
         T visitFunction(String name, Node[] args);
+        T visitAnnotation(String annotationText, String annotationName, Map<String, Object> parameters);
     }
 
     // Binary operation types
@@ -31,7 +34,7 @@ public class ExpressionParser {
     // Token types for parsing
     private enum TokenType {
         NUMBER, STRING, PARAMETER, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, POWER, CONCAT,
-        LEFT_PAREN, RIGHT_PAREN, COMMA, IDENTIFIER, EOF
+        LEFT_PAREN, RIGHT_PAREN, COMMA, IDENTIFIER, AT_SYMBOL, EQUALS, EOF
     }
 
     private static class Token {
@@ -115,6 +118,56 @@ public class ExpressionParser {
             return visitor.visitFunction(name, arguments);
         }
     }
+    
+    public static class AnnotationNode implements Node {
+        private final String annotationText;
+        private final String annotationName;
+        private final Map<String, Object> parameters;
+
+        public AnnotationNode(String annotationText, String annotationName, Map<String, Object> parameters) {
+            this.annotationText = annotationText;
+            this.annotationName = annotationName;
+            this.parameters = parameters;
+        }
+
+        public String getAnnotationText() {
+            return annotationText;
+        }
+
+        public String getAnnotationName() {
+            return annotationName;
+        }
+
+        public Map<String, Object> getParameters() {
+            return parameters;
+        }
+
+        @Override
+        public <T> T accept(Visitor<T> visitor) {
+            return visitor.visitAnnotation(annotationText, annotationName, parameters);
+        }
+    }
+    
+    /**
+     * Represents a parameter reference within an annotation parameter.
+     * This allows annotation parameters to reference values from the parameter map.
+     */
+    public static class ParameterReference {
+        private final String parameterName;
+        
+        public ParameterReference(String parameterName) {
+            this.parameterName = parameterName;
+        }
+        
+        public String getParameterName() {
+            return parameterName;
+        }
+        
+        @Override
+        public String toString() {
+            return "$" + parameterName;
+        }
+    }
 
     // Expression evaluator
     public static class ExpressionEvaluator implements Visitor<Object> {
@@ -181,6 +234,12 @@ public class ExpressionParser {
             Object value = parameters.get(name);
             if (value == null) {
                 throw new IllegalArgumentException("Parameter not found: " + name);
+            }
+            if (value instanceof AtomicLong) {
+                return ((AtomicLong)value).incrementAndGet();
+            }
+            if (value instanceof AtomicInteger) {
+                return ((AtomicInteger)value).incrementAndGet();
             }
             return returnString ? String.valueOf(value) : value;
         }
@@ -258,6 +317,16 @@ public class ExpressionParser {
                     throw new IllegalArgumentException("Unknown function: " + name);
             }
         }
+        
+        @Override
+        public Object visitAnnotation(String annotationText, String annotationName, Map<String, Object> parameters) {
+            try {
+                // Create a dynamic annotation proxy and evaluate it
+                return AnnotationEvaluator.evaluate(annotationName, parameters, this.parameters, returnString);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to evaluate annotation @" + annotationName + ": " + e.getMessage(), e);
+            }
+        }
     }
 
     // Parser implementation
@@ -293,6 +362,8 @@ public class ExpressionParser {
                 case '(': pos++; currentToken = new Token(TokenType.LEFT_PAREN, "("); break;
                 case ')': pos++; currentToken = new Token(TokenType.RIGHT_PAREN, ")"); break;
                 case ',': pos++; currentToken = new Token(TokenType.COMMA, ","); break;
+                case '@': pos++; currentToken = new Token(TokenType.AT_SYMBOL, "@"); break;
+                case '=': pos++; currentToken = new Token(TokenType.EQUALS, "="); break;
                 case '\'':
                     pos++;
                     StringBuilder str = new StringBuilder();
@@ -308,7 +379,7 @@ public class ExpressionParser {
                 case '$':
                     pos++;
                     StringBuilder param = new StringBuilder();
-                    while (pos < input.length() && (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '.')) {
+                    while (pos < input.length() && (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '_' || input.charAt(pos) == '.')) {
                         param.append(input.charAt(pos++));
                     }
                     currentToken = new Token(TokenType.PARAMETER, param.toString());
@@ -388,6 +459,8 @@ public class ExpressionParser {
                     return new StringNode(token.value);
                 case PARAMETER:
                     return new ParameterNode(token.value);
+                case AT_SYMBOL:
+                    return parseAnnotationReference();
                 case IDENTIFIER:
                     if (currentToken.type != TokenType.LEFT_PAREN) {
                         throw new IllegalArgumentException("Expected '(' after function name");
@@ -427,6 +500,82 @@ public class ExpressionParser {
             advance();
 
             return args.toArray(new Node[0]);
+        }
+        
+        private Node parseAnnotationReference() {
+            // Expect an identifier after @
+            if (currentToken.type != TokenType.IDENTIFIER) {
+                throw new IllegalArgumentException("Expected annotation name after @");
+            }
+            
+            String annotationName = currentToken.value;
+            StringBuilder fullAnnotation = new StringBuilder("@");
+            fullAnnotation.append(annotationName);
+            advance();
+            
+            Map<String, Object> parameters = new HashMap<>();
+            
+            // Check if there are parameters
+            if (currentToken.type == TokenType.LEFT_PAREN) {
+                fullAnnotation.append("(");
+                advance();
+                
+                // Parse parameters
+                while (currentToken.type != TokenType.RIGHT_PAREN) {
+                    if (currentToken.type != TokenType.IDENTIFIER) {
+                        throw new IllegalArgumentException("Expected parameter name");
+                    }
+                    String paramName = currentToken.value;
+                    advance();
+                    
+                    if (currentToken.type != TokenType.EQUALS) {
+                        throw new IllegalArgumentException("Expected '=' after parameter name");
+                    }
+                    advance();
+                    
+                    // Parse parameter value
+                    Object paramValue = parseParameterValue();
+                    parameters.put(paramName, paramValue);
+                    fullAnnotation.append(paramName).append("=").append(paramValue);
+                    
+                    if (currentToken.type == TokenType.COMMA) {
+                        fullAnnotation.append(",");
+                        advance();
+                    } else if (currentToken.type != TokenType.RIGHT_PAREN) {
+                        throw new IllegalArgumentException("Expected ',' or ')' after parameter value");
+                    }
+                }
+                
+                fullAnnotation.append(")");
+                advance();
+            }
+            
+            return new AnnotationNode(fullAnnotation.toString(), annotationName, parameters);
+        }
+        
+        private Object parseParameterValue() {
+            switch (currentToken.type) {
+                case NUMBER:
+                    Object value = Long.parseLong(currentToken.value);
+                    advance();
+                    return value;
+                case STRING:
+                    value = currentToken.value;
+                    advance();
+                    return value;
+                case PARAMETER:
+                    // Handle parameter references within annotation parameters
+                    value = new ParameterReference(currentToken.value);
+                    advance();
+                    return value;
+                case IDENTIFIER:
+                    // Handle enum values or other identifiers
+                    value = currentToken.value;
+                    advance();
+                    return value;
+                default:
+                    throw new IllegalArgumentException("Expected parameter value");
+            }
         }
     }
 

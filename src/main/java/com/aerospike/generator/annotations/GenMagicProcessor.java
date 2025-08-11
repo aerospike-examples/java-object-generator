@@ -62,6 +62,8 @@ public class GenMagicProcessor implements Processor {
             return new GenObjectProcessor<>(null, percentNull, fieldType, field);
         case UUID:
             return new GenUuidProcessor(null, fieldType, field);
+        case ENUM:
+            return new GenEnumProcessor(null, fieldType, field);
         case DATE:
         case LOCALDATE:
         case LOCALDATETIME:

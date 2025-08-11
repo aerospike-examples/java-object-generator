@@ -13,8 +13,8 @@ public class GenExpressionProcessor implements Processor {
     private final Node abstractSyntaxTree;
     private final boolean returnString;
     
-    public GenExpressionProcessor(GenExpression range, FieldType fieldType, Field field) {
-        this(range.value(), fieldType);
+    public GenExpressionProcessor(GenExpression genExpression, FieldType fieldType, Field field) {
+        this(genExpression.value(), fieldType);
     }
     
     public GenExpressionProcessor(String value, FieldType fieldType) {

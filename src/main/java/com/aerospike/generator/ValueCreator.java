@@ -149,25 +149,25 @@ public class ValueCreator<T> {
         Class<?> clazz = field.getDeclaringClass();
         FieldType fieldType = mapFieldType(field);
         boolean found = false;
-        found = checkAndUse(found, field, fieldType, GenAddress.class, GenAddressProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenBoolean.class, GenBooleanProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenBrowser.class, GenBrowserProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenBytes.class, GenBytesProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenDate.class, GenDateProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenEmail.class, GenEmailProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenEnum.class, GenEnumProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenExclude.class, GenExcludeProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenExpression.class, GenExpressionProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenHexString.class, GenHexStringProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenIpV4.class, GenIpV4Processor.class);
-        found = checkAndUse(found, field, fieldType, GenList.class, GenListProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenName.class, GenNameProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenNumber.class, GenNumberProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenObject.class, GenObjectProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenOneOf.class, GenOneOfProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenRange.class, GenRangeProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenString.class, GenStringProcessor.class);
-        found = checkAndUse(found, field, fieldType, GenUuid.class, GenUuidProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenAddress.class, GenAddressProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenBoolean.class, GenBooleanProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenBrowser.class, GenBrowserProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenBytes.class, GenBytesProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenDate.class, GenDateProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenEmail.class, GenEmailProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenEnum.class, GenEnumProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenExclude.class, GenExcludeProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenExpression.class, GenExpressionProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenHexString.class, GenHexStringProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenIpV4.class, GenIpV4Processor.class);
+            found = checkAndUse(found, field, fieldType, GenList.class, GenListProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenName.class, GenNameProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenNumber.class, GenNumberProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenObject.class, GenObjectProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenOneOf.class, GenOneOfProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenRange.class, GenRangeProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenString.class, GenStringProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenUuid.class, GenUuidProcessor.class);
         
         
         if (!found) {

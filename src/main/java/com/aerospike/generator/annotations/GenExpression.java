@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Generate a key. The key is an expression which can be very simple or very complex.
+ * Generate a value using an expression which can be very simple or very complex.
  * 
  * <p>The expression can contain the following elements:</p>
  * 
@@ -33,9 +33,17 @@ import java.lang.annotation.Target;
  * 
  * <h3>Parameters</h3>
  * <ul>
- *   <li>Parameter reference: {@code $key} - an id passed in representing a unique key to the this record.</li>
+ *   <li>Parameter reference: {@code $key} - an id passed in representing a unique key to this record.</li>
  *   <li>Parameters must be provided in the parameters map</li>
  *   <li>Parameters are of type Long</li>
+ * </ul>
+ * 
+ * <h3>Annotation References</h3>
+ * <ul>
+ *   <li>Annotation reference: {@code @GenNumber(start=1, end=1000)} - directly reference generator annotations</li>
+ *   <li>Annotation references are evaluated at runtime and their values are used in the expression</li>
+ *   <li>Annotation parameters can reference other parameters: {@code @GenNumber(start=1, end=$MAX_ACCOUNTS)}</li>
+ *   <li>Supported annotations: GenNumber, GenString, GenBoolean, GenUuid, GenDate, GenEmail, GenName, etc.</li>
  * </ul>
  * 
  * <h3>Functions</h3>
@@ -60,15 +68,19 @@ import java.lang.annotation.Target;
  * 
  * <h3>Examples</h3>
  * <pre>
- * "2 + 3 * 4"                    // Evaluates to 14
- * "$key * 2 + 5"                 // Uses parameter value
- * "'Hello' & ' World'"           // String concatenation
- * "($key + 10) * 2"              // Parentheses for grouping
- * "NOW()"                        // Current timestamp
- * "DATE(NOW())"                  // Current date in yyyy-MM-dd format
- * "DATE(NOW(), 'HH:mm:ss')"      // Current time in custom format
- * "PAD(42, 5, '0')"              // Returns "00042"
- * "PAD('ABC', 5, '*')"           // Returns "**ABC"
+ * "2 + 3 * 4"                                    // Evaluates to 14
+ * "$key * 2 + 5"                                 // Uses parameter value
+ * "'Hello' & ' World'"                           // String concatenation
+ * "($key + 10) * 2"                              // Parentheses for grouping
+ * "NOW()"                                        // Current timestamp
+ * "DATE(NOW())"                                  // Current date in yyyy-MM-dd format
+ * "DATE(NOW(), 'HH:mm:ss')"                      // Current time in custom format
+ * "PAD(42, 5, '0')"                              // Returns "00042"
+ * "PAD('ABC', 5, '*')"                           // Returns "**ABC"
+ * "'txn-' & @GenNumber(start=1, end=1000)"                    // Uses annotation reference
+ * "'user-' & @GenString(length=5, type=CHARACTERS)"           // Uses string annotation
+ * "'acct-' & @GenNumber(start=1, end=$MAX_ACCOUNTS)"          // Uses parameterized annotation
+ * "'order-' & @GenNumber(start=$MIN_ORDER, end=$MAX_ORDER)"   // Uses multiple parameter references
  * </pre>
  * 
  *
