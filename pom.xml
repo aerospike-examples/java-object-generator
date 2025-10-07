@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.aerospike</groupId>
   <artifactId>java-object-generator</artifactId>
-  <version>0.9</version>
+  <version>0.9.0</version>
   <packaging>jar</packaging>
   <name>Test Data Generator</name>
   <description>Generate test data for business objects based on annotation</description>

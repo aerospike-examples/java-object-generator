@@ -112,7 +112,6 @@ public class Generator {
         Factory<T> factoryToUse = factory == null ? new DefaultConstructorFactory<T>(clazz) : factory;
         ValueCreator<T> valueCreator = ValueCreatorCache.getInstance().get(clazz);
         
-        Map<String, Object> params = paramMap != null ? new HashMap<>(paramMap) : new HashMap<>(); 
         int threadsToUse = threads <= 0 ? Runtime.getRuntime().availableProcessors() : threads;
         this.started.set(0);
         this.success.set(0);
@@ -124,6 +123,7 @@ public class Generator {
         
         for (int i = 0; i < threadsToUse; i++) {
             executor.submit(() -> {
+                Map<String, Object> params = paramMap != null ? new HashMap<>(paramMap) : new HashMap<>();
                 while (true) {
                     long id = started.getAndIncrement();
                     if (id > endRecord) {
