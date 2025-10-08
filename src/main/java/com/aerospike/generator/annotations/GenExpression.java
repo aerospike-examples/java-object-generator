@@ -38,6 +38,15 @@ import java.lang.annotation.Target;
  *   <li>Parameters are of type Long</li>
  * </ul>
  * 
+ * <h3>Object Property Access</h3>
+ * <ul>
+ *   <li>Object property access: {@code $obj.fieldName} - access fields of the object being generated</li>
+ *   <li>Array access: {@code $obj.arrayName[index]} - access array elements by index</li>
+ *   <li>List access: {@code $obj.listName[index]} - access list elements by index</li>
+ *   <li>Object properties are only available for reading, not writing</li>
+ *   <li>GenExpression fields are processed last, so other fields are available for reference</li>
+ * </ul>
+ * 
  * <h3>Annotation References</h3>
  * <ul>
  *   <li>Annotation reference: {@code @GenNumber(start=1, end=1000)} - directly reference generator annotations</li>
@@ -81,6 +90,10 @@ import java.lang.annotation.Target;
  * "'user-' & @GenString(length=5, type=CHARACTERS)"           // Uses string annotation
  * "'acct-' & @GenNumber(start=1, end=$MAX_ACCOUNTS)"          // Uses parameterized annotation
  * "'order-' & @GenNumber(start=$MIN_ORDER, end=$MAX_ORDER)"   // Uses multiple parameter references
+ * "'session-' & $obj.userId & '-' & @GenNumber(start=1000, end=9999)"  // Uses object property access
+ * "'TXN-' & $obj.amount & '-' & @GenString(length=3, type=CHARACTERS)" // References object field
+ * "'Description: ' & $obj.tags[0]"                             // References array element
+ * "$obj.startTimestamp + 30 * 24 * 60 * 60 * 1000"           // Date calculation using object property
  * </pre>
  * 
  *

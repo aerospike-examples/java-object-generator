@@ -1,10 +1,10 @@
 package com.aerospike.generator.example;
 
-import com.aerospike.generator.Generator;
-import com.aerospike.generator.ValueCreator;
-import com.aerospike.generator.ValueCreatorCache;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.aerospike.generator.ValueCreator;
+import com.aerospike.generator.ValueCreatorCache;
 
 /**
  * Example runner to demonstrate the parameterized annotation functionality in GenExpression.

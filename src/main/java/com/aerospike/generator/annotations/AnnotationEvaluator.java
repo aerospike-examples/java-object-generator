@@ -99,6 +99,7 @@ public class AnnotationEvaluator {
     
     private static Object createAnnotationProxy(Class<?> annotationClass, Map<String, Object> parameters) {
         InvocationHandler handler = new InvocationHandler() {
+            @SuppressWarnings({ "unchecked", "rawtypes" })
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                 String methodName = method.getName();

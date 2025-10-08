@@ -13,4 +13,5 @@ import java.lang.annotation.Target;
 public @interface GenNumber {
     long start() default Long.MIN_VALUE;
     long end() default Long.MAX_VALUE;
+    long roundToClosest() default 1;
 }

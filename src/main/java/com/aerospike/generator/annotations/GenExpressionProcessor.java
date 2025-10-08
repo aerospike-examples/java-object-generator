@@ -1,6 +1,7 @@
 package com.aerospike.generator.annotations;
 
 import java.lang.reflect.Field;
+import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,8 +28,16 @@ public class GenExpressionProcessor implements Processor {
         this.returnString = (fieldType == FieldType.STRING || fieldType == FieldType.UUID);
         
         if (!returnString) {
-            // Give a quick test to ensure a number is returned
-            parser.evaluate(abstractSyntaxTree, Map.of("Key", 1L), false);
+            // Give a quick test to ensure a number is returned, but only if no object properties are involved
+            try {
+                parser.evaluate(abstractSyntaxTree, Map.of("Key", 1L), false);
+            } catch (IllegalArgumentException e) {
+                // If the expression contains object properties, skip the test evaluation
+                // as the object won't be available during construction
+                if (!e.getMessage().contains("Object 'obj' not found")) {
+                    throw e;
+                }
+            }
         }
     }
 
@@ -42,6 +51,8 @@ public class GenExpressionProcessor implements Processor {
             return (long)result;
         case UUID:
             return UUID.fromString((String)result);
+        case DATE:
+            return new Date((long)result);
         default:
             return result;
         }
@@ -53,9 +64,15 @@ public class GenExpressionProcessor implements Processor {
         case LONG:
         case STRING:
         case UUID:
+        case DATE:
             return true;
-        default: 
+        default:
             return false;
         }
+    }
+    
+    @Override
+    public boolean isDeferred() {
+        return true;
     }
 }

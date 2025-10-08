@@ -9,6 +9,7 @@ import java.lang.reflect.Modifier;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,6 +72,7 @@ public class ValueCreator<T> {
     private final Constructor<T> constructor;
     private final Class<T> clazz;
 
+    @SuppressWarnings("unchecked")
     public ValueCreator(Class<T> clazz) {
         this.clazz = clazz;
         Field[] fields = clazz.getDeclaredFields();
@@ -118,13 +120,18 @@ public class ValueCreator<T> {
     }
     
     public T createAndPopulate(Map<String, Object> params) {
+        return createAndPopulate(params, true);
+    }
+    
+    public T createAndPopulate(Map<String, Object> params, boolean createNewMap) {
         T obj = create();
         try {
-            return populate(obj, params);
+            return populate(obj, params, createNewMap);
         } catch (IllegalArgumentException | IllegalAccessException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
     }
+    
     private <P extends Annotation> boolean checkAndUse(boolean alreadyFound, Field field, FieldType fieldType, Class<P> annotation, Class<? extends Processor> processor) {
         if (alreadyFound) {
             return true;
@@ -256,9 +263,37 @@ public class ValueCreator<T> {
     }
     
     public T populate(T object, Map<String, Object> params) throws IllegalArgumentException, IllegalAccessException {
-        for (Field field : fieldProcessors.keySet()) {
-            field.set(object, fieldProcessors.get(field).process(params));
+        return this.populate(object, params, true);
+    }
+    
+    public T populate(T object, Map<String, Object> params, boolean createNewMap) throws IllegalArgumentException, IllegalAccessException {
+        Map<String, Object> expressionParams = params;
+        if (createNewMap) {
+            expressionParams = new HashMap<>(params);
+            expressionParams.put("obj", object);
         }
+        
+        // First, process all non-deferred fields
+        for (Map.Entry<Field, Processor> entry : fieldProcessors.entrySet()) {
+            Processor processor = entry.getValue();
+            if (!processor.isDeferred()) {
+                Field field = entry.getKey();
+                field.setAccessible(true);
+                field.set(object, processor.process(expressionParams));
+            }
+        }
+        
+        // Then, process deferred fields (GenExpression fields)
+        for (Map.Entry<Field, Processor> entry : fieldProcessors.entrySet()) {
+            Processor processor = entry.getValue();
+            if (processor.isDeferred()) {
+                // Add the object to the parameter map for expression evaluation
+                Field field = entry.getKey();
+                field.setAccessible(true);
+                field.set(object, processor.process(expressionParams));
+            }
+        }
+        
         if (superclazz != null) {
             superclazz.populate(object, params);
         }

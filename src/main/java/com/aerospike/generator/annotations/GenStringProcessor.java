@@ -2,7 +2,6 @@ package com.aerospike.generator.annotations;
 
 import java.lang.reflect.Field;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 
 import com.aerospike.generator.annotations.GenString.StringType;
 import com.github.javafaker.Faker;

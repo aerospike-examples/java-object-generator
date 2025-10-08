@@ -20,7 +20,7 @@ public class GenHexStringProcessor implements Processor {
         this.minLength = minLength;
         this.maxLength = maxLength;
         this.length = length;
-        this.separator = separator;
+        this.separator = separator == null ? "" : separator;
         
         if (length < 0 && (minLength < 0 || maxLength < 0)) {
             throw new IllegalArgumentException("Either length must be specified or both minLength and maxLength");

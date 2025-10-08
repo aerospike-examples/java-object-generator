@@ -1,5 +1,6 @@
 package com.aerospike.generator.annotations;
 
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -24,6 +25,7 @@ public class ExpressionParser {
         T visitParameter(String name);
         T visitFunction(String name, Node[] args);
         T visitAnnotation(String annotationText, String annotationName, Map<String, Object> parameters);
+        T visitObjectProperty(String objectName, String propertyName, Node indexExpression);
     }
 
     // Binary operation types
@@ -34,7 +36,7 @@ public class ExpressionParser {
     // Token types for parsing
     private enum TokenType {
         NUMBER, STRING, PARAMETER, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, POWER, CONCAT,
-        LEFT_PAREN, RIGHT_PAREN, COMMA, IDENTIFIER, AT_SYMBOL, EQUALS, EOF
+        LEFT_PAREN, RIGHT_PAREN, COMMA, IDENTIFIER, AT_SYMBOL, EQUALS, DOT, LEFT_BRACKET, RIGHT_BRACKET, EOF
     }
 
     private static class Token {
@@ -168,6 +170,38 @@ public class ExpressionParser {
             return "$" + parameterName;
         }
     }
+    
+    /**
+     * Represents object property access like $obj.fieldName or $obj.array[index].
+     */
+    public static class ObjectPropertyNode implements Node {
+        private final String objectName;
+        private final String propertyName;
+        private final Node indexExpression; // For array access, null for property access
+        
+        public ObjectPropertyNode(String objectName, String propertyName, Node indexExpression) {
+            this.objectName = objectName;
+            this.propertyName = propertyName;
+            this.indexExpression = indexExpression;
+        }
+        
+        public String getObjectName() {
+            return objectName;
+        }
+        
+        public String getPropertyName() {
+            return propertyName;
+        }
+        
+        public Node getIndexExpression() {
+            return indexExpression;
+        }
+        
+        @Override
+        public <T> T accept(Visitor<T> visitor) {
+            return visitor.visitObjectProperty(objectName, propertyName, indexExpression);
+        }
+    }
 
     // Expression evaluator
     public static class ExpressionEvaluator implements Visitor<Object> {
@@ -190,6 +224,8 @@ public class ExpressionParser {
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Cannot convert string to number: " + value);
                 }
+            } else if (value instanceof java.util.Date) {
+                return ((java.util.Date) value).getTime();
             } else {
                 throw new IllegalArgumentException("Cannot convert to number: " + value);
             }
@@ -327,6 +363,51 @@ public class ExpressionParser {
                 throw new IllegalArgumentException("Failed to evaluate annotation @" + annotationName + ": " + e.getMessage(), e);
             }
         }
+        
+        @Override
+        public Object visitObjectProperty(String objectName, String propertyName, Node indexExpression) {
+            try {
+                // Get the object from parameters
+                Object obj = parameters.get(objectName);
+                if (obj == null) {
+                    throw new IllegalArgumentException("Object '" + objectName + "' not found in parameter map");
+                }
+                
+                // Use reflection to access the field
+                Field field = obj.getClass().getDeclaredField(propertyName);
+                field.setAccessible(true);
+                Object value = field.get(obj);
+                
+                // If this is array access, get the element at the specified index
+                if (indexExpression != null) {
+                    Object index = indexExpression.accept(this);
+                    int indexValue = (int) toLong(index);
+                    
+                    if (value instanceof Object[]) {
+                        Object[] array = (Object[]) value;
+                        if (indexValue >= 0 && indexValue < array.length) {
+                            value = array[indexValue];
+                        } else {
+                            throw new IllegalArgumentException("Array index " + indexValue + " out of bounds for array of length " + array.length);
+                        }
+                    } else if (value instanceof java.util.List) {
+                        java.util.List<?> list = (java.util.List<?>) value;
+                        if (indexValue >= 0 && indexValue < list.size()) {
+                            value = list.get(indexValue);
+                        } else {
+                            throw new IllegalArgumentException("List index " + indexValue + " out of bounds for list of size " + list.size());
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Cannot index into non-array/non-list value: " + value.getClass().getSimpleName());
+                    }
+                }
+                
+                return returnString ? String.valueOf(value) : value;
+                
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to access object property " + objectName + "." + propertyName + ": " + e.getMessage(), e);
+            }
+        }
     }
 
     // Parser implementation
@@ -364,6 +445,9 @@ public class ExpressionParser {
                 case ',': pos++; currentToken = new Token(TokenType.COMMA, ","); break;
                 case '@': pos++; currentToken = new Token(TokenType.AT_SYMBOL, "@"); break;
                 case '=': pos++; currentToken = new Token(TokenType.EQUALS, "="); break;
+                case '.': pos++; currentToken = new Token(TokenType.DOT, "."); break;
+                case '[': pos++; currentToken = new Token(TokenType.LEFT_BRACKET, "["); break;
+                case ']': pos++; currentToken = new Token(TokenType.RIGHT_BRACKET, "]"); break;
                 case '\'':
                     pos++;
                     StringBuilder str = new StringBuilder();
@@ -379,7 +463,7 @@ public class ExpressionParser {
                 case '$':
                     pos++;
                     StringBuilder param = new StringBuilder();
-                    while (pos < input.length() && (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '_' || input.charAt(pos) == '.')) {
+                    while (pos < input.length() && (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '_')) {
                         param.append(input.charAt(pos++));
                     }
                     currentToken = new Token(TokenType.PARAMETER, param.toString());
@@ -458,6 +542,10 @@ public class ExpressionParser {
                 case STRING:
                     return new StringNode(token.value);
                 case PARAMETER:
+                    // Check if this is object property access ($obj.field)
+                    if (currentToken.type == TokenType.DOT) {
+                        return parseObjectPropertyAccess(token.value);
+                    }
                     return new ParameterNode(token.value);
                 case AT_SYMBOL:
                     return parseAnnotationReference();
@@ -576,6 +664,34 @@ public class ExpressionParser {
                 default:
                     throw new IllegalArgumentException("Expected parameter value");
             }
+        }
+        
+        private Node parseObjectPropertyAccess(String objectName) {
+            // We've already consumed the $obj part, now expect .field
+            if (currentToken.type != TokenType.DOT) {
+                throw new IllegalArgumentException("Expected '.' after object name");
+            }
+            advance();
+            
+            // Expect field name
+            if (currentToken.type != TokenType.IDENTIFIER) {
+                throw new IllegalArgumentException("Expected field name after '.'");
+            }
+            String fieldName = currentToken.value;
+            advance();
+            
+            // Check for array access [index]
+            Node indexExpression = null;
+            if (currentToken.type == TokenType.LEFT_BRACKET) {
+                advance();
+                indexExpression = parseExpression();
+                if (currentToken.type != TokenType.RIGHT_BRACKET) {
+                    throw new IllegalArgumentException("Expected ']' after array index");
+                }
+                advance();
+            }
+            
+            return new ObjectPropertyNode(objectName, fieldName, indexExpression);
         }
     }
 

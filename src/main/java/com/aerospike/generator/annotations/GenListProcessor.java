@@ -6,7 +6,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -124,6 +123,7 @@ public class GenListProcessor<T> implements Processor {
         }
     }
     
+    @SuppressWarnings("unchecked")
     private String pushParamKey(Map<String, Object> params, int index) {
         List<String> keys = (List<String>) params.get("__KeyStack");
         if (keys == null) {
@@ -137,6 +137,7 @@ public class GenListProcessor<T> implements Processor {
         return newKey;
     }
     
+    @SuppressWarnings("unchecked")
     private void popParamKey(Map<String, Object> params) {
         List<String> keys = (List<String>) params.get("__KeyStack");
         String thisKey = keys.remove(keys.size()-1);
@@ -157,7 +158,7 @@ public class GenListProcessor<T> implements Processor {
                 thisObject = processor.process(params);
             }
             else if (subclasses.length == 0) {
-                thisObject = this.valueCreator.createAndPopulate(params);
+                thisObject = this.valueCreator.createAndPopulate(params, false);
             }
             else {
                 Class<?> subclass = subclasses[ThreadLocalRandom.current().nextInt(subclasses.length)];

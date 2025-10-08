@@ -50,7 +50,7 @@ public class GenObjectProcessor<T> implements Processor {
             return null;
         }
         if (subclasses.length == 0) {
-            return this.valueCreator.createAndPopulate(params);
+            return this.valueCreator.createAndPopulate(params, false);
         }
         else {
             Class<?> subclass = subclasses[ThreadLocalRandom.current().nextInt(subclasses.length)];
