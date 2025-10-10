@@ -86,7 +86,7 @@
 							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
 						</manifest>
 					</archive>
-					<finalName>${project.artifactId}-${project.version}</finalName>
+					<!-- finalName>${project.artifactId}-${project.version}</finalName-->
 					<appendAssemblyId>true</appendAssemblyId>
 				</configuration>
 				<executions>

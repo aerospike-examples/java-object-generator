@@ -15,12 +15,71 @@ public class StringUtils {
      * @return
      */
     public static boolean isWordOneOf(int index, List<String> listOfWords, Set<String> wordsToMatch) {
+        return isWordOneOf(index, listOfWords, wordsToMatch, false);
+    }
+    
+    public static boolean isWordOneOf(int index, List<String> listOfWords, Set<String> wordsToMatch, boolean allowPlurals) {
         if (index < 0) {
             index = index + listOfWords.size();
         }
         index %= listOfWords.size();
         String refWord = listOfWords.get(index);
-        return wordsToMatch.contains(refWord);
+        
+        // Direct match
+        if (wordsToMatch.contains(refWord)) {
+            return true;
+        }
+        
+        // If plurals are allowed, check for singular/plural variations
+        if (allowPlurals) {
+            // Check if the word is a plural of any word in the set
+            for (String wordToMatch : wordsToMatch) {
+                if (isPluralOf(refWord, wordToMatch)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Checks if the given word is a plural form of the target word.
+     * Handles common pluralization patterns:
+     * - Adding 's': skill -> skills
+     * - Adding 'es': index -> indexes, box -> boxes
+     * - Changing 'y' to 'ies': dependency -> dependencies
+     * 
+     * @param word The word to check (e.g., "skills")
+     * @param target The target word (e.g., "skill")
+     * @return true if word is a plural of target
+     */
+    private static boolean isPluralOf(String word, String target) {
+        if (word == null || target == null) {
+            return false;
+        }
+        
+        // Direct match
+        if (word.equals(target)) {
+            return true;
+        }
+        
+        // Check if word is target + 's'
+        if (word.equals(target + "s")) {
+            return true;
+        }
+        
+        // Check if word is target + 'es' (for words ending in s, x, z, ch, sh)
+        if (word.equals(target + "es")) {
+            return true;
+        }
+        
+        // Check if word is target with 'y' changed to 'ies' (dependency -> dependencies)
+        if (target.endsWith("y") && word.equals(target.substring(0, target.length() - 1) + "ies")) {
+            return true;
+        }
+        
+        return false;
     }
 
     public static boolean isLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
@@ -28,15 +87,23 @@ public class StringUtils {
     }
 
     public static boolean isFirstOrLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
+        return isFirstOrLastWordOneOf(listOfWords, wordsToMatch, false);
+    }
+    
+    public static boolean isFirstOrLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch, boolean allowPlurals) {
         if (listOfWords.size() == 1) {
-            return isFirstWordOneOf(listOfWords, wordsToMatch);
+            return isFirstWordOneOf(listOfWords, wordsToMatch, allowPlurals);
         }
-        return isWordOneOf(-1, listOfWords, wordsToMatch) ||
-                isWordOneOf(0, listOfWords, wordsToMatch);
+        return isWordOneOf(-1, listOfWords, wordsToMatch, allowPlurals) ||
+                isWordOneOf(0, listOfWords, wordsToMatch, allowPlurals);
     }
 
     public static boolean isFirstWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
-        return isWordOneOf(0, listOfWords, wordsToMatch);
+        return isFirstWordOneOf(listOfWords, wordsToMatch, false);
+    }
+    
+    public static boolean isFirstWordOneOf(List<String> listOfWords, Set<String> wordsToMatch, boolean allowPlurals) {
+        return isWordOneOf(0, listOfWords, wordsToMatch, allowPlurals);
     }
 
     public static boolean areLastTwoWordsOneOf(List<String> listOfWords, 

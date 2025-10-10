@@ -647,6 +647,16 @@ public class ExpressionParser {
                     Object value = Long.parseLong(currentToken.value);
                     advance();
                     return value;
+                case MINUS:
+                    // Handle negative numbers
+                    advance();
+                    if (currentToken.type == TokenType.NUMBER) {
+                        value = -Long.parseLong(currentToken.value);
+                        advance();
+                        return value;
+                    } else {
+                        throw new IllegalArgumentException("Expected number after '-'");
+                    }
                 case STRING:
                     value = currentToken.value;
                     advance();

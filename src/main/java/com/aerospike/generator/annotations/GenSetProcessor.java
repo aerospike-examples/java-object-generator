@@ -6,15 +6,17 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.aerospike.generator.ValueCreator;
 import com.aerospike.generator.ValueCreatorCache;
 import com.aerospike.generator.annotations.GenString.StringType;
 
-public class GenListProcessor<T> implements Processor {
+public class GenSetProcessor<T> implements Processor {
 
     private final int minItems;
     private final int maxItems;
@@ -22,24 +24,24 @@ public class GenListProcessor<T> implements Processor {
     private final ValueCreator<T> valueCreator;
     private final int percentNull;
     private final Class<?>[] subclasses;
-    private final boolean isArray;
     private final Class<?> elementType;
     private final Processor processor;
     
-    public GenListProcessor(GenList genList, FieldType fieldType, Field field) {
-        this(genList.subclasses(), genList.percentNull(), genList.minItems(), genList.maxItems(), 
-                genList.items(), genList.stringLength(), genList.minStringLength(), genList.maxStringLength(),
-                genList.stringType(), genList.stringPattern(), genList.stringOptions(), fieldType, field);
+    public GenSetProcessor(GenSet genSet, FieldType fieldType, Field field) {
+        this(genSet.subclasses(), genSet.percentNull(), genSet.minItems(), genSet.maxItems(), 
+                genSet.items(), genSet.stringLength(), genSet.minStringLength(), genSet.maxStringLength(),
+                genSet.stringType(), genSet.stringPattern(), genSet.stringOptions(), fieldType, field);
     }
+    
     @SuppressWarnings("unchecked")
-    public GenListProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
+    public GenSetProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
             int items, FieldType fieldType, Field field) {
         this(subclasses, percentNull, minItems, maxItems, items, -1, 3, 10, 
                 GenString.StringType.WORDS, "", "", fieldType, field);
     }
     
     @SuppressWarnings("unchecked")
-    public GenListProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
+    public GenSetProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
             int items, int stringLength, int minStringLength, int maxStringLength,
             GenString.StringType stringType, String stringPattern, String stringOptions, 
             FieldType fieldType, Field field) {
@@ -68,24 +70,14 @@ public class GenListProcessor<T> implements Processor {
             throw new IllegalArgumentException("Both minItems and maxItems must be specified, or just specify items");
         }
 
-        
-        this.isArray = field.getType().isArray();
-        Class<?> elementType = null;
-        if (isArray) {
-            elementType = field.getType().getComponentType();
-        }
-        else {
-            // This is a List type, check it's parameterized
-            Type genericType = field.getGenericType();
-            if (genericType instanceof ParameterizedType) {
-                ParameterizedType pt = (ParameterizedType) genericType;
-                elementType = (Class<?>) pt.getActualTypeArguments()[0];
-            }
-            
-        }
-        if (elementType == null) {
-            throw new IllegalArgumentException(String.format("Field %s of class %s is %s but the type it contains could not be determined",
-                    field.getName(), field.getDeclaringClass().getName(), isArray ? "an array" : "a list"));
+        // Determine element type from Set<?>
+        Type genericType = field.getGenericType();
+        if (genericType instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) genericType;
+            this.elementType = (Class<?>) pt.getActualTypeArguments()[0];
+        } else {
+            throw new IllegalArgumentException(String.format("Field %s of class %s is a Set but the type it contains could not be determined",
+                    field.getName(), field.getDeclaringClass().getName()));
         }
         
         if (String.class.isAssignableFrom(elementType)) {
@@ -124,18 +116,17 @@ public class GenListProcessor<T> implements Processor {
             processor = null;
         }
         
-        this.elementType = elementType;
         if (processor == null) {
             this.valueCreator = (ValueCreator<T>) ValueCreatorCache.getInstance().get(elementType);
             this.valueCreator.requiresConstructor();
         
             for (Class<?> subclass : subclasses) {
                 if (!elementType.isAssignableFrom(subclass)) {
-                    throw new IllegalArgumentException(String.format("Class % is listed as a subclass on field %s of class %s, but is not a subclass",
+                    throw new IllegalArgumentException(String.format("Class %s is listed as a subclass on field %s of class %s, but is not a subclass",
                             subclass.getName(), field.getName(), elementType.getName()));
                 }
                 if (Modifier.isAbstract(subclass.getModifiers())) {
-                    throw new IllegalArgumentException(String.format("Class % is listed as a subclass on field %s of class %s, but is abstract. Only concrete classes can be listed",
+                    throw new IllegalArgumentException(String.format("Class %s is listed as a subclass on field %s of class %s, but is abstract. Only concrete classes can be listed",
                             subclass.getName(), field.getName(), elementType.getName()));
                 }
                 // Make sure this subclass in in the cache
@@ -174,10 +165,15 @@ public class GenListProcessor<T> implements Processor {
             return null;
         }
         int length = Processor.getLengthToGenerate(items, minItems, maxItems);
-        Object objs = Array.newInstance(elementType, length);
-        for (int i = 0; i < length; i++) {
+        
+        // Generate items and add to set (Set automatically handles duplicates)
+        Set<Object> set = new HashSet<>();
+        int attempts = 0;
+        int maxAttempts = length * 10; // Prevent infinite loops
+        
+        while (set.size() < length && attempts < maxAttempts) {
             Object thisObject;
-            pushParamKey(params, i); 
+            pushParamKey(params, set.size()); 
             if (processor != null) {
                 thisObject = processor.process(params);
             }
@@ -189,24 +185,15 @@ public class GenListProcessor<T> implements Processor {
                 ValueCreator<?> creator = ValueCreatorCache.getInstance().get(subclass);
                 thisObject = creator.createAndPopulate(params);
             }
-            Array.set(objs, i, thisObject);
+            set.add(thisObject);
             popParamKey(params);
+            attempts++;
         }
-        if (isArray ) {
-            return objs;
-        }
-        else {
-            // Do NOT use
-            // Arrays.asList(objs); 
-            // here! This gives a list of size one which contains an array.
-            List<Object> list = new ArrayList<>(length);
-            for (int i = 0; i < length; i++) {
-                list.add(Array.get(objs, i));
-            }
-            return list;
-        }
+        
+        return set;
     }
+    
     public boolean supports(FieldType fieldType) {
-        return fieldType == FieldType.LIST;
+        return fieldType == FieldType.SET;
     }
 }

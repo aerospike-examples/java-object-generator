@@ -6,11 +6,14 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,6 +56,8 @@ import com.aerospike.generator.annotations.GenOneOf;
 import com.aerospike.generator.annotations.GenOneOfProcessor;
 import com.aerospike.generator.annotations.GenRange;
 import com.aerospike.generator.annotations.GenRangeProcessor;
+import com.aerospike.generator.annotations.GenSet;
+import com.aerospike.generator.annotations.GenSetProcessor;
 import com.aerospike.generator.annotations.GenString;
 import com.aerospike.generator.annotations.GenString.StringType;
 import com.aerospike.generator.annotations.GenStringProcessor;
@@ -173,6 +178,7 @@ public class ValueCreator<T> {
             found = checkAndUse(found, field, fieldType, GenObject.class, GenObjectProcessor.class);
             found = checkAndUse(found, field, fieldType, GenOneOf.class, GenOneOfProcessor.class);
             found = checkAndUse(found, field, fieldType, GenRange.class, GenRangeProcessor.class);
+            found = checkAndUse(found, field, fieldType, GenSet.class, GenSetProcessor.class);
             found = checkAndUse(found, field, fieldType, GenString.class, GenStringProcessor.class);
             found = checkAndUse(found, field, fieldType, GenUuid.class, GenUuidProcessor.class);
         
@@ -238,6 +244,12 @@ public class ValueCreator<T> {
         else if (LocalDateTime.class.isAssignableFrom(clazz)) {
             return FieldType.LOCALDATETIME;
         }
+        else if (LocalTime.class.isAssignableFrom(clazz)) {
+            return FieldType.LOCALTIME;
+        }
+        else if (Instant.class.isAssignableFrom(clazz)) {
+            return FieldType.INSTANT;
+        }
         else if (UUID.class.isAssignableFrom(clazz)) {
             return FieldType.UUID;
         }
@@ -250,8 +262,11 @@ public class ValueCreator<T> {
                 return FieldType.LIST;
             }
         }
-        else if (List.class.isAssignableFrom(clazz)) {
+        else if (java.util.List.class.isAssignableFrom(clazz)) {
             return FieldType.LIST;
+        }
+        else if (java.util.Set.class.isAssignableFrom(clazz)) {
+            return FieldType.SET;
         }
         else if (!clazz.isPrimitive()) {
             return FieldType.OBJECT;

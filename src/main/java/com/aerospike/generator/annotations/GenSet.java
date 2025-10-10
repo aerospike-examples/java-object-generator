@@ -7,14 +7,14 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface GenList {
+public @interface GenSet {
     int percentNull() default 0;
     int minItems() default -1;
-    int maxItems() default -1;;
+    int maxItems() default -1;
     int items() default -1;
     Class<?>[] subclasses() default {};
     
-    // String generation options (only applies to List<String> fields)
+    // String generation options (only applies to Set<String> fields)
     int stringLength() default -1;
     int minStringLength() default 3;
     int maxStringLength() default 10;

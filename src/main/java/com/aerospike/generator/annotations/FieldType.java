@@ -10,8 +10,11 @@ public enum FieldType {
     INTEGER, 
     LOCALDATE, 
     LOCALDATETIME, 
+    LOCALTIME,
+    INSTANT,
     LONG, 
     OBJECT,
+    SET,
     STRING, 
     UUID,
     LIST

@@ -7,8 +7,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.aerospike.generator.annotations.GenAddress.AddressPart;
+import com.aerospike.generator.annotations.GenListProcessor;
 import com.aerospike.generator.annotations.GenName.NameType;
 import com.aerospike.generator.annotations.GenPhoneNumber.PhoneNumType;
+import com.aerospike.generator.annotations.GenSetProcessor;
+import com.aerospike.generator.annotations.GenString;
 import com.aerospike.generator.annotations.GenString.StringType;
 
 /**
@@ -163,6 +166,10 @@ public class GenMagicProcessor implements Processor {
             return determineBooleanProcessorToUse(classWords, fieldWords, field);
         case OBJECT:
             return new GenObjectProcessor<>(null, percentNull, fieldType, field);
+        case LIST:
+            return determineListProcessorToUse(classWords, fieldWords, field);
+        case SET:
+            return determineSetProcessorToUse(classWords, fieldWords, field);
         case UUID:
             return new GenUuidProcessor(null, fieldType, field);
         case ENUM:
@@ -170,6 +177,8 @@ public class GenMagicProcessor implements Processor {
         case DATE:
         case LOCALDATE:
         case LOCALDATETIME:
+        case LOCALTIME:
+        case INSTANT:
             return determineDateProcessorToUse(classWords, fieldWords, field);
         default:
         }
@@ -190,11 +199,16 @@ public class GenMagicProcessor implements Processor {
         if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("uuid"))) {
             return new GenUuidProcessor(null, fieldType, field);
         }
+        // ===== CURRENCY FIELDS =====
+        // Currency fields - must be checked early to avoid conflicts with other patterns
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("currency", "curr"))) {
+            return new GenOneOfProcessor("AUD,USD,EUR,GBP,CAD,JPY,CHF,NZD,SGD,HKD,CNY,INR,BRL,MXN", fieldType);
+        }
         else if (StringUtils.isLastWordOneOf(classWords, Set.of("id", "key'"))) {
             String className = classWords.stream().map(s -> StringUtils.capitalise(s)).collect(Collectors.joining());
             return new GenExpressionProcessor("'" + className + "-'$Key", this.fieldType);
         }
-        else if (StringUtils.matches(fieldWords, Set.of("first", "given", "christian"), Set.of("name"))) {
+        else if (StringUtils.matches(fieldWords, Set.of("first", "given", "christian", "preferred"), Set.of("name"))) {
             return new GenNameProcessor(NameType.FIRST, fieldType);
         }
         else if (StringUtils.matches(fieldWords, Set.of("last", "family"), Set.of("name")) ||
@@ -246,9 +260,15 @@ public class GenMagicProcessor implements Processor {
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("email")) ) {
             return new GenEmailProcessor(null, fieldType, field);
         }
-        else if (StringUtils.matches(fieldWords, Set.of("phone", "fax", "mobile", "cell", "direct"), Set.of("number", "num", "no"))) {
+        else if (StringUtils.matches(fieldWords, Set.of("phone", "fax", "mobile", "cell", "direct"), Set.of("number", "num", "no")) ||
+                StringUtils.matches(fieldWords, Set.of("phone", "fax", "mobile", "cell"))) {
             return new GenPhoneNumberProcessor(PhoneNumType.PHONE, fieldType, field);
         }
+        // Count and quantity fields - typical quantities
+        else if (StringUtils.isLastWordOneOf(fieldWords, Set.of("count", "quantity", "qty", "number", "num", "total"))) {
+            return new GenExpressionProcessor("'$' & @GenNumber(start=10, end=10000)", fieldType);
+        }
+
         // ===== FINANCIAL/CURRENCY FIELDS =====
         // Basic pricing and cost fields - typical e-commerce/product pricing
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("price", "cost", "fee", "charge", "rate", "value", "worth"))) {
@@ -326,12 +346,12 @@ public class GenMagicProcessor implements Processor {
             return new GenOneOfProcessor("public,private,restricted,confidential,secret", fieldType);
         }
         // ===== GEOGRAPHIC FIELDS =====
-        // Coordinate fields - realistic latitude/longitude ranges
+        // Coordinate fields - realistic latitude/longitude ranges with decimal precision
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("latitude", "lat"))) {
-            return new GenExpressionProcessor("@GenNumber(start=-90, end=90) & '°'", fieldType);
+            return new GenExpressionProcessor("@GenNumber(start=-90, end=90) & '.' & @GenNumber(start=0, end=999999) & '°'", fieldType);
         }
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("longitude", "lng", "lon"))) {
-            return new GenExpressionProcessor("@GenNumber(start=-180, end=180) & '°'", fieldType);
+            return new GenExpressionProcessor("@GenNumber(start=-180, end=180) & '.' & @GenNumber(start=0, end=999999) & '°'", fieldType);
         }
         // Administrative region fields - uses address processor for state codes
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("region", "area", "zone", "district"))) {
@@ -447,9 +467,14 @@ public class GenMagicProcessor implements Processor {
      * @return Processor instance for generating numeric values
      */
     private Processor determineNumberProcessorToUse(List<String> classWords, List<String> fieldWords, Field field) {
+        // ===== GENERIC NUMBER FIELDS =====
+        // Fields ending in Number/Num - generate random positive numbers
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("number", "num", "id", "count", "quantity", "total", "sum"))) {
+            return new GenNumberProcessor(1, 1000000, fieldType);
+        }
         // ===== FINANCIAL FIELDS =====
         // Basic amount fields - typical product/service pricing
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("amount", "amt", "weight"))) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("amount", "amt", "weight"))) {
             return new GenNumberProcessor(5, 1000, fieldType);
         }
         // Price and cost fields - typical e-commerce/product pricing (rounded to nearest $1)
@@ -760,5 +785,269 @@ public class GenMagicProcessor implements Processor {
         // ===== DEFAULT PATTERN =====
         // Default balanced ratio for unknown patterns
         return new GenBooleanProcessor("true:1,false:1", fieldType);
+    }
+    
+    /**
+     * Determines the appropriate GenOneOfProcessor options for a given field.
+     * This method analyzes field names to provide contextually appropriate options
+     * that can be used for both single String fields and List/Set<String> fields.
+     * 
+     * @param classWords List of words from the class name
+     * @param fieldWords List of words from the field name
+     * @return String containing comma-separated options, or null if no pattern matches
+     */
+    public static String getOneOfOptions(List<String> classWords, List<String> fieldWords) {
+        // ===== CONFIGURATION FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("config", "setting", "option", "parameter"))) {
+            return "development,staging,production,test,local,remote";
+        }
+        
+        // ===== STATUS/STATE FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("status", "state", "condition", "phase", "stage"))) {
+            return "active,inactive,pending,approved,rejected,completed,failed,cancelled";
+        }
+        
+        // ===== PRIORITY/LEVEL FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("level", "grade", "rank", "priority"))) {
+            return "low,medium,high,critical,urgent";
+        }
+        
+        // ===== QUALITY FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("quality", "performance", "efficiency", "reliability"))) {
+            return "excellent,good,average,poor,terrible";
+        }
+        
+        // ===== ACCESS FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("availability", "access", "permission", "visibility"))) {
+            return "public,private,restricted,confidential,secret";
+        }
+        
+        // ===== TIMEZONE FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("timezone", "tz"))) {
+            return "UTC,EST,PST,MST,CST,EDT,PDT,MDT,CDT,AEST,AEDT,NZST,NZDT";
+        }
+        
+        // ===== CONTINENT FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("continent"))) {
+            return "North America,South America,Europe,Asia,Africa,Australia,Antarctica";
+        }
+        
+        // ===== PROFESSIONAL FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("title", "position", "role", "job"))) {
+            return "Manager,Developer,Analyst,Designer,Consultant,Specialist,Coordinator,Director";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("department", "division", "team"))) {
+            return "Engineering,Marketing,Sales,HR,Finance,Operations,Support,Research";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("education", "degree", "qualification", "certification"))) {
+            return "Bachelor's,Master's,PhD,Associate,Certificate,Diploma";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("experience", "skill", "expertise", "proficiency"))) {
+            return "Beginner,Intermediate,Advanced,Expert,Master";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("company", "organization", "firm", "corporation"))) {
+            return "Startup,Small Business,Medium Enterprise,Large Corporation,Multinational";
+        }
+        
+        // ===== PRODUCT/SERVICE FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("category", "type", "kind", "class"))) {
+            return "Electronics,Clothing,Books,Food,Home,Automotive,Sports,Health";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("brand", "manufacturer", "vendor"))) {
+            return "Aerospike,Apple,Samsung,Microsoft,Google,Amazon,Nike,Adidas,Sony,Intel,AMD";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("condition", "quality", "grade", "rating"))) {
+            return "New,Like New,Good,Fair,Poor,Excellent,Outstanding";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("size", "dimension", "measurement"))) {
+            return "XS,S,M,L,XL,XXL,Small,Medium,Large,Extra Large";
+        }
+        
+        // ===== TECHNICAL FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("database", "db"))) {
+            return "Aerospike,MySQL,PostgreSQL,MongoDB,YugabyteDB,Elasticsearch,Oracle,SQLite";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("language", "lang"))) {
+            return "Java,Python,JavaScript,TypeScript,C#,Go,Rust,PHP,Ruby,Scala";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("framework", "library", "tool", "technology"))) {
+            return "Spring,React,Angular,Vue,Django,Flask,Express,Laravel,Rails,ASP.NET";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("os", "operating", "platform"))) {
+            return "Windows,Linux,macOS,Ubuntu,CentOS,Debian,RedHat,FreeBSD";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("cloud", "deployment", "environment"))) {
+            return "AWS,Azure,GCP,Docker,Kubernetes,Heroku,DigitalOcean,Linode";
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Determines the appropriate GenOneOfProcessor options for a given field with plural support.
+     * This method analyzes field names to provide contextually appropriate options
+     * that can be used for both single String fields and List/Set<String> fields.
+     * 
+     * @param classWords List of words from the class name
+     * @param fieldWords List of words from the field name
+     * @return String containing comma-separated options, or null if no pattern matches
+     */
+    public static String getOneOfOptionsWithPlurals(List<String> classWords, List<String> fieldWords) {
+        // ===== CONFIGURATION FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("config", "setting", "option", "parameter"), true)) {
+            return "development,staging,production,test,local,remote";
+        }
+        
+        // ===== STATUS/STATE FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("status", "state", "condition", "phase", "stage"), true)) {
+            return "active,inactive,pending,approved,rejected,completed,failed,cancelled";
+        }
+        
+        // ===== PRIORITY/LEVEL FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("level", "grade", "rank", "priority"), true)) {
+            return "low,medium,high,critical,urgent";
+        }
+        
+        // ===== QUALITY FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("quality", "performance", "efficiency", "reliability"), true)) {
+            return "excellent,good,average,poor,terrible";
+        }
+        
+        // ===== ACCESS FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("availability", "access", "permission", "visibility"), true)) {
+            return "public,private,restricted,confidential,secret";
+        }
+        
+        // ===== TIMEZONE FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("timezone", "tz"), true)) {
+            return "UTC,EST,PST,MST,CST,EDT,PDT,MDT,CDT,AEST,AEDT,NZST,NZDT";
+        }
+        
+        // ===== CONTINENT FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("continent"), true)) {
+            return "North America,South America,Europe,Asia,Africa,Australia,Antarctica";
+        }
+        
+        // ===== PROFESSIONAL FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("title", "position", "role", "job"), true)) {
+            return "Manager,Developer,Analyst,Designer,Consultant,Specialist,Coordinator,Director";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("department", "division", "team"), true)) {
+            return "Engineering,Marketing,Sales,HR,Finance,Operations,Support,Research";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("education", "degree", "qualification", "certification"), true)) {
+            return "Bachelor's,Master's,PhD,Associate,Certificate,Diploma";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("experience", "skill", "expertise", "proficiency"), true)) {
+            return "Beginner,Intermediate,Advanced,Expert,Master";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("company", "organization", "firm", "corporation"), true)) {
+            return "Startup,Small Business,Medium Enterprise,Large Corporation,Multinational";
+        }
+        
+        // ===== PRODUCT/SERVICE FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("category", "type", "kind", "class"), true)) {
+            return "Electronics,Clothing,Books,Food,Home,Automotive,Sports,Health";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("brand", "manufacturer", "vendor"), true)) {
+            return "Aerospike,Apple,Samsung,Microsoft,Google,Amazon,Nike,Adidas,Sony,Intel,AMD";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("condition", "quality", "grade", "rating"), true)) {
+            return "New,Like New,Good,Fair,Poor,Excellent,Outstanding";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("size", "dimension", "measurement"), true)) {
+            return "XS,S,M,L,XL,XXL,Small,Medium,Large,Extra Large";
+        }
+        
+        // ===== TECHNICAL FIELDS =====
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("database", "db"), true)) {
+            return "Aerospike,MySQL,PostgreSQL,MongoDB,YugabyteDB,Elasticsearch,Oracle,SQLite";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("language", "lang"), true)) {
+            return "Java,Python,JavaScript,TypeScript,C#,Go,Rust,PHP,Ruby,Scala";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("framework", "library", "tool", "technology"), true)) {
+            return "Spring,React,Angular,Vue,Django,Flask,Express,Laravel,Rails,ASP.NET";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("os", "operating", "platform"), true)) {
+            return "Windows,Linux,macOS,Ubuntu,CentOS,Debian,RedHat,FreeBSD";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("cloud", "deployment", "environment"), true)) {
+            return "AWS,Azure,GCP,Docker,Kubernetes,Heroku,DigitalOcean,Linode";
+        }
+        
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("dependency", "library", "package", "module"), true)) {
+            return "Spring Boot,React,Angular,Vue.js,Express.js,Lodash,Moment.js,Axios,Bootstrap,jQuery";
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Determines the appropriate processor for List fields based on field name patterns.
+     * This method analyzes field names to provide contextually appropriate List generators.
+     * 
+     * @param classWords List of words from the class name
+     * @param fieldWords List of words from the field name
+     * @param field The field being processed
+     * @return Processor instance for generating List values
+     */
+    private Processor determineListProcessorToUse(List<String> classWords, List<String> fieldWords, Field field) {
+        // Try to use intelligent pattern matching for List<String> fields with plural support
+        String oneOfOptions = getOneOfOptionsWithPlurals(classWords, fieldWords);
+        
+        if (oneOfOptions != null) {
+            // Use intelligent pattern matching with GenOneOfProcessor
+            return new GenListProcessor(new Class<?>[0], percentNull, 1, 5, -1, 
+                    -1, 3, 10, GenString.StringType.WORDS, "", oneOfOptions, fieldType, field);
+        } else {
+            // Use default GenListProcessor with standard string generation
+            return new GenListProcessor(new Class<?>[0], percentNull, 1, 5, -1, fieldType, field);
+        }
+    }
+    
+    /**
+     * Determines the appropriate processor for Set fields based on field name patterns.
+     * This method analyzes field names to provide contextually appropriate Set generators.
+     * 
+     * @param classWords List of words from the class name
+     * @param fieldWords List of words from the field name
+     * @param field The field being processed
+     * @return Processor instance for generating Set values
+     */
+    private Processor determineSetProcessorToUse(List<String> classWords, List<String> fieldWords, Field field) {
+        // Try to use intelligent pattern matching for Set<String> fields with plural support
+        String oneOfOptions = getOneOfOptionsWithPlurals(classWords, fieldWords);
+        
+        if (oneOfOptions != null) {
+            // Use intelligent pattern matching with GenOneOfProcessor
+            return new GenSetProcessor(new Class<?>[0], percentNull, 1, 5, -1, -1, 3, 10, 
+                    GenString.StringType.WORDS, "", oneOfOptions, fieldType, field);
+        } else {
+            // Use default GenSetProcessor with standard string generation
+            return new GenSetProcessor(new Class<?>[0], percentNull, 1, 5, -1, fieldType, field);
+        }
     }
 }

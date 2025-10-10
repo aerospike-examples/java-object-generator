@@ -4,7 +4,9 @@ import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -49,6 +51,8 @@ public class GenDateProcessor implements Processor {
         case DATE:
         case LOCALDATE:
         case LOCALDATETIME:
+        case LOCALTIME:
+        case INSTANT:
         case STRING:
             return true;
         default:
@@ -212,9 +216,13 @@ public class GenDateProcessor implements Processor {
         case LONG:
             return time;
         case LOCALDATE:
-            return time == 0 ? null : Instant.ofEpochMilli(time);
+            return time == 0 ? null : LocalDateTime.ofInstant(Instant.ofEpochMilli(time), ZoneId.systemDefault()).toLocalDate();
         case LOCALDATETIME:
             return time == 0 ? null : LocalDateTime.ofInstant(Instant.ofEpochMilli(time), ZoneId.systemDefault());
+        case LOCALTIME:
+            return time == 0 ? null : LocalDateTime.ofInstant(Instant.ofEpochMilli(time), ZoneId.systemDefault()).toLocalTime();
+        case INSTANT:
+            return time == 0 ? null : Instant.ofEpochMilli(time);
         case STRING:
             // TODO: Format
 //            return time == 0 ? "" : new SimpleDateFormat().format(new Date(time));
