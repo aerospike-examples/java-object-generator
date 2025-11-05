@@ -31,18 +31,31 @@ public class GenListProcessor<T> implements Processor {
                 genList.items(), genList.stringLength(), genList.minStringLength(), genList.maxStringLength(),
                 genList.stringType(), genList.stringPattern(), genList.stringOptions(), fieldType, field);
     }
-    @SuppressWarnings("unchecked")
     public GenListProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
             int items, FieldType fieldType, Field field) {
         this(subclasses, percentNull, minItems, maxItems, items, -1, 3, 10, 
                 GenString.StringType.WORDS, "", "", fieldType, field);
     }
     
-    @SuppressWarnings("unchecked")
     public GenListProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
             int items, int stringLength, int minStringLength, int maxStringLength,
             GenString.StringType stringType, String stringPattern, String stringOptions, 
             FieldType fieldType, Field field) {
+        this(subclasses, percentNull, minItems, maxItems, items, stringLength, minStringLength, maxStringLength,
+                stringType, stringPattern, stringOptions, fieldType, field, null);
+    }
+    
+    public GenListProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
+            int items, FieldType fieldType, Field field, Processor elementProcessor) {
+        this(subclasses, percentNull, minItems, maxItems, items, -1, 3, 10, 
+                GenString.StringType.WORDS, "", "", fieldType, field, elementProcessor);
+    }
+    
+    @SuppressWarnings("unchecked")
+    public GenListProcessor(Class<?>[] subclasses, int percentNull, int minItems, int maxItems, 
+            int items, int stringLength, int minStringLength, int maxStringLength,
+            GenString.StringType stringType, String stringPattern, String stringOptions, 
+            FieldType fieldType, Field field, Processor elementProcessor) {
         
         if (!supports(fieldType) ) {
             throw new IllegalArgumentException("Unsupported field type " + fieldType);
@@ -88,44 +101,47 @@ public class GenListProcessor<T> implements Processor {
                     field.getName(), field.getDeclaringClass().getName(), isArray ? "an array" : "a list"));
         }
         
-        if (String.class.isAssignableFrom(elementType)) {
+        // If an element processor is provided, use it; otherwise create default processor
+        if (elementProcessor != null) {
+            this.processor = elementProcessor;
+        } else if (String.class.isAssignableFrom(elementType)) {
             // Use flexible string generation based on parameters
             if (!stringOptions.isEmpty()) {
                 // Use GenOneOfProcessor for predefined options
-                processor = new GenOneOfProcessor(stringOptions, FieldType.STRING);
+                this.processor = new GenOneOfProcessor(stringOptions, FieldType.STRING);
             } else if (!stringPattern.isEmpty()) {
                 // Use GenStringProcessor with custom pattern
-                processor = new GenStringProcessor(StringType.REGEXIFY, stringLength, stringLength, -1, stringPattern, FieldType.STRING);
+                this.processor = new GenStringProcessor(StringType.REGEXIFY, stringLength, stringLength, -1, stringPattern, FieldType.STRING);
             } else {
                 // Use GenStringProcessor with specified type and length
                 if (stringLength >= 0) {
-                    processor = new GenStringProcessor(stringType, -1, -1, stringLength, "", FieldType.STRING);
+                    this.processor = new GenStringProcessor(stringType, -1, -1, stringLength, "", FieldType.STRING);
                 } else {
-                    processor = new GenStringProcessor(stringType, minStringLength, maxStringLength, -1, "", FieldType.STRING);
+                    this.processor = new GenStringProcessor(stringType, minStringLength, maxStringLength, -1, "", FieldType.STRING);
                 }
             }
         }
         else if (Long.class.isAssignableFrom(elementType)) {
-            processor = new GenNumberProcessor(0, 100, FieldType.LONG);
+            this.processor = new GenNumberProcessor(0, 100, FieldType.LONG);
         }
         else if (Integer.class.isAssignableFrom(elementType)) {
-            processor = new GenNumberProcessor(0, 100, FieldType.INTEGER);
+            this.processor = new GenNumberProcessor(0, 100, FieldType.INTEGER);
         }
         else if (Double.class.isAssignableFrom(elementType)) {
-            processor = new GenNumberProcessor(0, 1000, FieldType.DOUBLE);
+            this.processor = new GenNumberProcessor(0, 1000, FieldType.DOUBLE);
         }
         else if (Float.class.isAssignableFrom(elementType)) {
-            processor = new GenNumberProcessor(0, 1000, FieldType.FLOAT);
+            this.processor = new GenNumberProcessor(0, 1000, FieldType.FLOAT);
         }
         else if (Boolean.class.isAssignableFrom(elementType)) {
-            processor = new GenBooleanProcessor(null, FieldType.BOOLEAN);
+            this.processor = new GenBooleanProcessor(null, FieldType.BOOLEAN);
         }
         else {
-            processor = null;
+            this.processor = null;
         }
         
         this.elementType = elementType;
-        if (processor == null) {
+        if (this.processor == null) {
             this.valueCreator = (ValueCreator<T>) ValueCreatorCache.getInstance().get(elementType);
             this.valueCreator.requiresConstructor();
         

@@ -83,7 +83,11 @@ public class StringUtils {
     }
 
     public static boolean isLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
-        return isWordOneOf(-1, listOfWords, wordsToMatch);
+        return isLastWordOneOf(listOfWords, wordsToMatch, false);
+    }
+    
+    public static boolean isLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch, boolean allowPlurals) {
+        return isWordOneOf(-1, listOfWords, wordsToMatch, allowPlurals);
     }
 
     public static boolean isFirstOrLastWordOneOf(List<String> listOfWords, Set<String> wordsToMatch) {
@@ -127,6 +131,11 @@ public class StringUtils {
 
     @SafeVarargs
     public static boolean matches(List<String> words, Set<String> ... wordSets) {
+        return matches(words, false, wordSets);
+    }
+    
+    @SafeVarargs
+    public static boolean matches(List<String> words, boolean allowPlurals, Set<String> ... wordSets) {
         if (words.size() != wordSets.length) {
             return false;
         }
@@ -135,7 +144,7 @@ public class StringUtils {
                 // Null is a "match anything" prefix
                 continue;
             }
-            if (!isWordOneOf(i, words, wordSets[i])) {
+            if (!isWordOneOf(i, words, wordSets[i], allowPlurals)) {
                 return false;
             }
         }

@@ -1,12 +1,10 @@
 package com.aerospike.generator.example;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.aerospike.generator.ValueCreator;
 import com.aerospike.generator.ValueCreatorCache;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class PluralRunner {
 
