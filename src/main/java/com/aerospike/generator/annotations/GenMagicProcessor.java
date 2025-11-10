@@ -212,6 +212,9 @@ public class GenMagicProcessor implements Processor {
         if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("uuid"), allowPlurals)) {
             return new GenUuidProcessor(null, targetFieldType, field);
         }
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("color", "colour"), allowPlurals)) {
+            return new GenOneOfProcessor("Red,Blue,Green,Yellow,Black,White,Silver,Gray,Orange,Purple,Brown,Beige,Gold,Pink,Teal,Maroon,Navy,Turquoise,Olive,Magenta", targetFieldType);
+        }
         // ===== CURRENCY FIELDS =====
         // Currency fields - must be checked early to avoid conflicts with other patterns
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("currency", "curr"), allowPlurals)) {

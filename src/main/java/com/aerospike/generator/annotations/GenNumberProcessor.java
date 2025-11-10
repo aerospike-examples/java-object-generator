@@ -8,21 +8,26 @@ public class GenNumberProcessor implements Processor {
 
     private final long start;
     private final long end;
+    private final long divisor;
     private final long roundToClosest;
     private final FieldType fieldType;
     
     public GenNumberProcessor(GenNumber genNumber, FieldType fieldType, Field field) {
-        this(genNumber.start(), genNumber.end(), genNumber.roundToClosest(), fieldType);
+        this(genNumber.start(), genNumber.end(), genNumber.roundToClosest(), genNumber.divisor(), fieldType);
     }
     
     public GenNumberProcessor(long start, long end, FieldType fieldType) {
-        this(start, end, 1, fieldType);
+        this(start, end, 1, 1, fieldType);
+    }
+    public GenNumberProcessor(long start, long end, long divisor, FieldType fieldType) {
+        this(start, end, 1, divisor, fieldType);
     }
     
-    public GenNumberProcessor(long start, long end, long roundToClosest, FieldType fieldType) {
+    public GenNumberProcessor(long start, long end, long roundToClosest, long divisor, FieldType fieldType) {
         this.start = start;
         this.end = end;
         this.roundToClosest = roundToClosest;
+        this.divisor = divisor;
         this.fieldType = fieldType;
         if (!supports(fieldType) ) {
             throw new IllegalArgumentException("Unsupported field type " + fieldType);
@@ -52,15 +57,21 @@ public class GenNumberProcessor implements Processor {
             rawValue = roundToNearestMultiple(rawValue, roundToClosest);
         }
         
+        double rawDouble = (double) rawValue;
+        if (divisor != 1) {
+            rawDouble /= divisor;
+            rawValue = (long)rawDouble;
+        }
+        
         switch (fieldType) {
         case LONG:
             return rawValue;
         case INTEGER:
             return (int) rawValue;
         case DOUBLE:
-            return (double) rawValue;
+            return rawDouble;
         case FLOAT:
-            return (float) rawValue;
+            return (float) rawDouble;
         default: 
             return null;
         }
