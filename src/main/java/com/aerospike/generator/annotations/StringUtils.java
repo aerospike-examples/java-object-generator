@@ -116,6 +116,13 @@ public class StringUtils {
                 isWordOneOf(-2, listOfWords, secondLastWordsToMatch) &&
                 isWordOneOf(-1, listOfWords, lastWordsToMatch);
     }
+    
+    public static boolean areLastTwoWordsOneOf(List<String> listOfWords, 
+            Set<String> secondLastWordsToMatch, Set<String> lastWordsToMatch, boolean allowPlurals) {
+        return listOfWords.size() >= 2 && 
+                isWordOneOf(-2, listOfWords, secondLastWordsToMatch, allowPlurals) &&
+                isWordOneOf(-1, listOfWords, lastWordsToMatch, allowPlurals);
+    }
 
     /**
      * return the passes string with the first letter converted to upper case.

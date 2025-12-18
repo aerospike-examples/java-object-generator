@@ -1,6 +1,7 @@
 package com.aerospike.generator.annotations;
 
 import java.lang.reflect.Field;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -214,6 +215,13 @@ public class GenMagicProcessor implements Processor {
         }
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("color", "colour"), allowPlurals)) {
             return new GenOneOfProcessor("Red,Blue,Green,Yellow,Black,White,Silver,Gray,Orange,Purple,Brown,Beige,Gold,Pink,Teal,Maroon,Navy,Turquoise,Olive,Magenta", targetFieldType);
+        }
+        // ===== CAR FIELDS =====
+        else if (StringUtils.isLastWordOneOf(classWords, Set.of("car", "vehicle"), true) && StringUtils.isLastWordOneOf(fieldWords, Set.of("make"), allowPlurals)) {
+            return new GenOneOfProcessor("Toyota,Ford,Chevrolet,Honda,Nissan,BMW,Mercedes-Benz,Audi,Volkswagen,Hyundai,Kia,Subaru,Mazda,Volvo,Lexus,Jeep,Tesla,Porsche,Jaguar,Land Rover", targetFieldType);
+        }
+        else if (StringUtils.isLastWordOneOf(classWords, Set.of("car", "vehicle"), true) && StringUtils.isLastWordOneOf(fieldWords, Set.of("model"), allowPlurals)) {
+            return new GenOneOfProcessor("Corolla,Civic,Accord,Camry,Mustang,F-150,Silverado,Altima,Elantra,Sonata,Model3,ModelS,Wrangler,Cherokee,911,Cayenne,A4,A6,C-Class,3Series", targetFieldType);
         }
         // ===== CURRENCY FIELDS =====
         // Currency fields - must be checked early to avoid conflicts with other patterns
@@ -509,136 +517,144 @@ public class GenMagicProcessor implements Processor {
      * @return Processor instance for generating numeric values
      */
     private Processor determineNumberProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType) {
-        // Note: Plural support is enabled by default (true) for all patterns to handle common nouns
-        // that can be pluralized even in singular field contexts (e.g., "skills", "categories")
+        return determineNumberProcessorToUse(classWords, fieldWords, field, targetFieldType, true);
+    }
+    
+    private Processor determineNumberProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType, boolean allowPlurals) {
+        // Note: plural support is controlled via allowPlurals (pass true for List/Set element generation)
         
         // ===== QUANTITY FIELDS (must come before generic number pattern) =====
         // Quantity fields - specific range matching string pattern (10-10000)
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("quantity", "qty"), true)) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("quantity", "qty"), allowPlurals)) {
             return new GenNumberProcessor(10, 10000, targetFieldType);
         }
         // Count fields - positive counts
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("count"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("count"), allowPlurals)) {
             return new GenNumberProcessor(1, 1000, targetFieldType);
         }
         
+        // ===== CAR FIELDS =====
+        else if (StringUtils.isLastWordOneOf(classWords, Set.of("car", "vehicle"), true) && StringUtils.isLastWordOneOf(fieldWords, Set.of("year"), allowPlurals)) {
+            return new GenNumberProcessor(1998, LocalDate.now().getYear(), targetFieldType);
+        }
+
         // ===== FINANCIAL FIELDS =====
         // Basic amount fields - typical product/service pricing
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("amount", "amt", "weight"), true)) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("amount", "amt", "weight"), allowPlurals)) {
             return new GenNumberProcessor(5, 1000, targetFieldType);
         }
         // Price and cost fields - typical e-commerce/product pricing (rounded to nearest $1)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("price", "cost", "fee", "charge", "rate", "value", "worth"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("price", "cost", "fee", "charge", "rate", "value", "worth"), allowPlurals)) {
             return new GenNumberProcessor(10, 10000, 1, targetFieldType);
         }
         // Salary and income fields - realistic salary ranges (rounded to nearest $500)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("salary", "wage", "income", "revenue", "profit", "loss"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("salary", "wage", "income", "revenue", "profit", "loss"), allowPlurals)) {
             return new GenNumberProcessor(30000, 200000, 500, targetFieldType);
         }
         // Budget and allocation fields - project/team budgets (rounded to nearest $100)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("budget", "limit", "quota", "allowance"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("budget", "limit", "quota", "allowance"), allowPlurals)) {
             return new GenNumberProcessor(1000, 50000, 100, targetFieldType);
         }
         // Percentage-based financial fields
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("discount", "tax", "tip", "commission"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("discount", "tax", "tip", "commission"), allowPlurals)) {
             return new GenNumberProcessor(1, 50, targetFieldType);
         }
         // Investment and trading fields
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("shares", "stocks", "equity", "dividend", "yield"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("shares", "stocks", "equity", "dividend", "yield"), allowPlurals)) {
             return new GenNumberProcessor(1, 10000, targetFieldType);
         }
         // Credit and loan fields
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("credit", "debt", "loan", "mortgage", "interest"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("credit", "debt", "loan", "mortgage", "interest"), allowPlurals)) {
             return new GenNumberProcessor(1000, 1000000, targetFieldType);
         }
         // Balance and total fields - larger financial amounts
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("balance", "bal", "sum", "total", "volume"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("balance", "bal", "sum", "total", "volume"), allowPlurals)) {
             return new GenNumberProcessor(500, 100000, targetFieldType);
         }
         
         // ===== COORDINATE FIELDS =====
         // Latitude fields - realistic latitude ranges (-90 to 90)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("latitude", "lat"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("latitude", "lat"), allowPlurals)) {
             return new GenNumberProcessor(-90, 90, targetFieldType);
         }
         // Longitude fields - realistic longitude ranges (-180 to 180)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("longitude", "lng", "lon"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("longitude", "lng", "lon"), allowPlurals)) {
             return new GenNumberProcessor(-180, 180, targetFieldType);
         }
         
         // ===== TIME/AGE FIELDS =====
         // Age-related fields - realistic age ranges
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("age", "years", "months", "days"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("age", "years", "months", "days"), allowPlurals)) {
             return new GenNumberProcessor(1, 100, targetFieldType);
         }
         // Duration/Time fields - time intervals in seconds
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("duration", "length", "period", "interval", "timeout"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("duration", "length", "period", "interval", "timeout"), allowPlurals)) {
             return new GenNumberProcessor(1, 3600, targetFieldType); // 1 second to 1 hour
         }
         
         // ===== ID AND INDEX FIELDS =====
         // ID and index fields - unique identifier ranges (positive only)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("id", "index", "idx", "position", "pos"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("id", "index", "idx", "position", "pos"), allowPlurals)) {
             return new GenNumberProcessor(1, 10000, targetFieldType);
         }
         
         // ===== GENERIC NUMBER FIELDS (must come last) =====
         // Fields ending in Number/Num - generate random positive numbers
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("number", "num"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("number", "num"), allowPlurals)) {
             return new GenNumberProcessor(1, 1000000, targetFieldType);
         }
         
         // ===== RATING/SCORE FIELDS =====
         // Rating and score fields - typical rating scales
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("rating", "score", "grade", "points"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("rating", "score", "grade", "points"), allowPlurals)) {
             return new GenNumberProcessor(1, 10, targetFieldType);
         }
         // Percentage fields - percentage values
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("percent", "percentage", "rate", "ratio"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("percent", "percentage", "rate", "ratio"), allowPlurals)) {
             return new GenNumberProcessor(0, 100, targetFieldType);
         }
         
         // ===== MEASUREMENT FIELDS =====
         // Temperature fields - realistic temperature ranges
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("temperature", "temp"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("temperature", "temp"), allowPlurals)) {
             return new GenNumberProcessor(-50, 150, targetFieldType);
         }
         // Speed and velocity fields - decimal speed values
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("speed", "velocity"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("speed", "velocity"), allowPlurals)) {
             return new GenNumberProcessor(0, 200, targetFieldType);
         }
         // Weight and mass fields - decimal weight values (positive only)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("weight", "mass"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("weight", "mass"), allowPlurals)) {
             return new GenNumberProcessor(1, 1000, targetFieldType);
         }
         // Volume and capacity fields - decimal volume values
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("volume", "capacity"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("volume", "capacity"), allowPlurals)) {
             return new GenNumberProcessor(0, 10000, targetFieldType);
         }
         // Pressure and force fields - decimal pressure values
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("pressure", "force", "strength"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("pressure", "force", "strength"), allowPlurals)) {
             return new GenNumberProcessor(0, 1000, targetFieldType);
         }
         // Distance and dimension fields (positive only)
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("distance", "width", "height", "length", "depth"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("distance", "width", "height", "length", "depth"), allowPlurals)) {
             return new GenNumberProcessor(1, 1000, targetFieldType);
         }
         // Time duration fields - decimal time values
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("time", "interval"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("time", "interval"), allowPlurals)) {
             return new GenNumberProcessor(0, 3600, targetFieldType);
         }
         
         // ===== ADDITIONAL PATTERNS =====
         // Port and network fields
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("port", "portnumber"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("port", "portnumber"), allowPlurals)) {
             return new GenNumberProcessor(1024, 65535, targetFieldType);
         }
         // Version number fields
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("version", "major", "minor", "patch"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("version", "major", "minor", "patch"), allowPlurals)) {
             return new GenNumberProcessor(1, 99, targetFieldType);
         }
         // Thread and process fields
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("threads", "processes", "workers"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("threads", "processes", "workers"), allowPlurals)) {
             return new GenNumberProcessor(1, 100, targetFieldType);
         }
         
@@ -657,10 +673,14 @@ public class GenMagicProcessor implements Processor {
      * @return Processor instance for generating date values, or null if no pattern matches
      */
     private Processor getDateProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType) {
+        return getDateProcessorToUse(classWords, fieldWords, field, targetFieldType, true);
+    }
+    
+    private Processor getDateProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType, boolean allowPlurals) {
         // ===== BIRTH DATE FIELDS =====
         // Birth date and age-related fields - 18-90 years ago
         // Check for plural forms (birthdays) as well as singular
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("dob", "birthday"), true) ||
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("dob", "birthday"), allowPlurals) ||
                 StringUtils.matches(fieldWords, Set.of("birth"), Set.of("day", "date")) ||
                 StringUtils.matches(fieldWords, Set.of("name"), Set.of("day", "date")) ||
                 StringUtils.matches(fieldWords, Set.of("date"), Set.of("of"), Set.of("birth"))) {
@@ -671,82 +691,82 @@ public class GenMagicProcessor implements Processor {
         // Account creation, registration, and start dates - 5 years ago to 1 day ago
         if (StringUtils.areLastTwoWordsOneOf(fieldWords, 
                     Set.of("open", "opened", "created", "create", "join", "joined", "start", "stared", "begin"),
-                    Set.of("date", "time", "timestamp")) ||
+                    Set.of("date", "time", "timestamp"), allowPlurals) ||
                 StringUtils.areLastTwoWordsOneOf(fieldWords,
                     Set.of("date", "when", "time"),
-                    Set.of("open", "opened", "created", "create", "join", "joined", "start", "stared", "begin"))) {
+                    Set.of("open", "opened", "created", "create", "join", "joined", "start", "stared", "begin"), allowPlurals)) {
             return new GenDateProcessor("now-5y", "now-1d", percentNull, targetFieldType);
         }
         
         // ===== RECENT ACTIVITY FIELDS =====
         // Recent activity, login, and update dates - 1 year ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("last", "recent", "updated", "modified", "accessed", "viewed", "logged"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("last", "recent", "updated", "modified", "accessed", "viewed", "logged"), allowPlurals)) {
             return new GenDateProcessor("now-1y", "now", percentNull, targetFieldType);
         }
         
         // ===== FUTURE/SCHEDULED FIELDS =====
         // Future dates, appointments, and scheduled events - now to 1 year ahead
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("scheduled", "appointment", "meeting", "event", "deadline", "due", "expiry", "expiration"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("scheduled", "appointment", "meeting", "event", "deadline", "due", "expiry", "expiration"), allowPlurals)) {
             return new GenDateProcessor("now", "now+1y", percentNull, targetFieldType);
         }
         
         // ===== EMPLOYMENT FIELDS =====
         // Employment start and end dates - 20 years ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("hired", "employed", "started", "joined", "terminated", "ended", "resigned"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("hired", "employed", "started", "joined", "terminated", "ended", "resigned"), allowPlurals)) {
             return new GenDateProcessor("now-20y", "now", percentNull, targetFieldType);
         }
         
         // ===== ACADEMIC FIELDS =====
         // Education and graduation dates - 10 years ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("graduated", "enrolled", "admitted", "completed", "education", "academic"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("graduated", "enrolled", "admitted", "completed", "education", "academic"), allowPlurals)) {
             return new GenDateProcessor("now-10y", "now", percentNull, targetFieldType);
         }
         
         // ===== LEGAL/COMPLIANCE FIELDS =====
         // Legal dates, compliance, and certification dates - 5 years ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("certified", "licensed", "approved", "compliant", "legal", "contract", "agreement"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("certified", "licensed", "approved", "compliant", "legal", "contract", "agreement"), allowPlurals)) {
             return new GenDateProcessor("now-5y", "now", percentNull, targetFieldType);
         }
         
         // ===== FINANCIAL FIELDS =====
         // Payment, billing, and financial transaction dates - 2 years ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("paid", "billed", "charged", "transacted", "payment", "invoice", "receipt"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("paid", "billed", "charged", "transacted", "payment", "invoice", "receipt"), allowPlurals)) {
             return new GenDateProcessor("now-2y", "now", percentNull, targetFieldType);
         }
         
         // ===== MAINTENANCE/SUPPORT FIELDS =====
         // Maintenance, support, and service dates - 1 year ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("maintained", "serviced", "repaired", "updated", "patched", "fixed"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("maintained", "serviced", "repaired", "updated", "patched", "fixed"), allowPlurals)) {
             return new GenDateProcessor("now-1y", "now", percentNull, targetFieldType);
         }
         
         // ===== MEDICAL/HEALTH FIELDS =====
         // Medical appointments, checkups, and health-related dates - 2 years ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("appointment", "checkup", "exam", "visit", "treatment", "vaccinated", "tested"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("appointment", "checkup", "exam", "visit", "treatment", "vaccinated", "tested"), allowPlurals)) {
             return new GenDateProcessor("now-2y", "now", percentNull, targetFieldType);
         }
         
         // ===== TRAVEL FIELDS =====
         // Travel and trip dates - 1 year ago to 1 year ahead
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("travel", "trip", "departure", "arrival", "booking", "reservation"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("travel", "trip", "departure", "arrival", "booking", "reservation"), allowPlurals)) {
             return new GenDateProcessor("now-1y", "now+1y", percentNull, targetFieldType);
         }
         
         // ===== SUBSCRIPTION FIELDS =====
         // Subscription and membership dates - 1 year ago to 1 year ahead
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("subscribed", "membership", "renewal", "expires", "valid", "active"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("subscribed", "membership", "renewal", "expires", "valid", "active"), allowPlurals)) {
             return new GenDateProcessor("now-1y", "now+1y", percentNull, targetFieldType);
         }
         
         // ===== SYSTEM/LOG FIELDS =====
         // System logs, audit trails, and technical dates - 1 month ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("logged", "audit", "system", "technical", "debug", "trace"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("logged", "audit", "system", "technical", "debug", "trace"), allowPlurals)) {
             return new GenDateProcessor("now-1M", "now", percentNull, targetFieldType);
         }
         
         // ===== NOTIFICATION FIELDS =====
         // Notification and communication dates - 1 week ago to now
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("notified", "sent", "received", "delivered", "read", "opened"))) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("notified", "sent", "received", "delivered", "read", "opened"), allowPlurals)) {
             return new GenDateProcessor("now-1w", "now", percentNull, targetFieldType);
         }
         
@@ -758,7 +778,11 @@ public class GenMagicProcessor implements Processor {
     }
     
     private Processor determineDateProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType) {
-        Processor proc = getDateProcessorToUse(classWords, fieldWords, field, targetFieldType);
+        return determineDateProcessorToUse(classWords, fieldWords, field, targetFieldType, true);
+    }
+    
+    private Processor determineDateProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType, boolean allowPlurals) {
+        Processor proc = getDateProcessorToUse(classWords, fieldWords, field, targetFieldType, allowPlurals);
         if (proc != null) {
             return proc;
         }
@@ -779,68 +803,72 @@ public class GenMagicProcessor implements Processor {
     }
     
     private Processor determineBooleanProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType) {
-        // Note: Plural support is enabled by default (true) for all patterns to handle common nouns
+        return determineBooleanProcessorToUse(classWords, fieldWords, field, targetFieldType, true);
+    }
+    
+    private Processor determineBooleanProcessorToUse(List<String> classWords, List<String> fieldWords, Field field, FieldType targetFieldType, boolean allowPlurals) {
+        // Note: plural support is controlled via allowPlurals (pass true for List/Set element generation)
         // ===== REGISTRATION/STATUS FIELDS (High True Ratio) =====
         // Registration and membership fields - mostly true
-        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("registered", "enrolled", "member", "subscribed", "active", "verified", "confirmed"), true)) {
+        if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("registered", "enrolled", "member", "subscribed", "active", "verified", "confirmed"), allowPlurals)) {
             return new GenBooleanProcessor("true:8,false:1", targetFieldType);
         }
         // Account and user status fields - mostly true
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("account", "user", "profile", "session"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("account", "user", "profile", "session"), allowPlurals)) {
             return new GenBooleanProcessor("true:7,false:1", targetFieldType);
         }
         
         // ===== RARE/DEMOGRAPHIC FIELDS (High False Ratio) =====
         // Demographic and rare characteristic fields - mostly false
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("indigenous", "aboriginal", "torres", "strait", "islander", "native", "minority"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("indigenous", "aboriginal", "torres", "strait", "islander", "native", "minority"), allowPlurals)) {
             return new GenBooleanProcessor("true:1,false:19", targetFieldType);
         }
         // Disability and special needs fields - mostly false
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("disabled", "handicapped", "impaired", "special", "needs"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("disabled", "handicapped", "impaired", "special", "needs"), allowPlurals)) {
             return new GenBooleanProcessor("true:1,false:9", targetFieldType);
         }
         // Veteran and military fields - mostly false
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("veteran", "military", "served", "armed", "forces"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("veteran", "military", "served", "armed", "forces"), allowPlurals)) {
             return new GenBooleanProcessor("true:1,false:9", targetFieldType);
         }
         
         // ===== SECURITY/PRIVACY FIELDS (Balanced) =====
         // Security and privacy fields - balanced ratio
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("secure", "private", "confidential", "sensitive", "encrypted", "protected"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("secure", "private", "confidential", "sensitive", "encrypted", "protected"), allowPlurals)) {
             return new GenBooleanProcessor("true:1,false:1", targetFieldType);
         }
         // Permission and access fields - balanced ratio
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("permission", "access", "authorized", "allowed", "granted"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("permission", "access", "authorized", "allowed", "granted"), allowPlurals)) {
             return new GenBooleanProcessor("true:1,false:1", targetFieldType);
         }
         
         // ===== FEATURE/OPTION FIELDS (Moderate True Ratio) =====
         // Feature and option fields - moderately true
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("feature", "option", "setting", "preference", "enabled", "available"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("feature", "option", "setting", "preference", "enabled", "available"), allowPlurals)) {
             return new GenBooleanProcessor("true:3,false:1", targetFieldType);
         }
         // Notification and communication fields - moderately true
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("notification", "email", "sms", "alert", "reminder", "newsletter"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("notification", "email", "sms", "alert", "reminder", "newsletter"), allowPlurals)) {
             return new GenBooleanProcessor("true:3,false:1", targetFieldType);
         }
         
         // ===== ERROR/EXCEPTION FIELDS (High False Ratio) =====
         // Error and exception fields - mostly false
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("error", "exception", "failed", "invalid", "corrupted", "broken"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("error", "exception", "failed", "invalid", "corrupted", "broken"), allowPlurals)) {
             return new GenBooleanProcessor("true:1,false:9", targetFieldType);
         }
         // Warning and alert fields - mostly false
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("warning", "alert", "critical", "urgent", "emergency"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("warning", "alert", "critical", "urgent", "emergency"), allowPlurals)) {
             return new GenBooleanProcessor("true:1,false:9", targetFieldType);
         }
         
         // ===== COMPLETION/SUCCESS FIELDS (High True Ratio) =====
         // Completion and success fields - mostly true
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("completed", "finished", "done", "successful", "passed", "approved"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("completed", "finished", "done", "successful", "passed", "approved"), allowPlurals)) {
             return new GenBooleanProcessor("true:8,false:1", targetFieldType);
         }
         // Payment and transaction fields - mostly true
-        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("paid", "billed", "charged", "processed", "transacted"), true)) {
+        else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("paid", "billed", "charged", "processed", "transacted"), allowPlurals)) {
             return new GenBooleanProcessor("true:7,false:1", targetFieldType);
         }
         
@@ -1201,26 +1229,26 @@ public class GenMagicProcessor implements Processor {
         }
         
         // Use the same pattern matching logic as single fields, but with the correct element field type
-        // Note: allowPlurals is true because List/Set field names are often plural (e.g., "zipCodes", "cities")
+        // Note: allowPlurals should be true because List/Set field names are often plural (e.g., "zipCodes", "cities")
         switch (elementFieldType) {
         case STRING:
             return determineStringProcessorToUse(classWords, fieldWords, field, FieldType.STRING, true);
         case INTEGER:
-            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.INTEGER);
+            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.INTEGER, true);
         case LONG:
-            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.LONG);
+            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.LONG, true);
         case DOUBLE:
-            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.DOUBLE);
+            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.DOUBLE, true);
         case FLOAT:
-            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.FLOAT);
+            return determineNumberProcessorToUse(classWords, fieldWords, field, FieldType.FLOAT, true);
         case BOOLEAN:
-            return determineBooleanProcessorToUse(classWords, fieldWords, field, FieldType.BOOLEAN);
+            return determineBooleanProcessorToUse(classWords, fieldWords, field, FieldType.BOOLEAN, true);
         case DATE:
         case LOCALDATE:
         case LOCALDATETIME:
         case LOCALTIME:
         case INSTANT:
-            return determineDateProcessorToUse(classWords, fieldWords, field, elementFieldType);
+            return determineDateProcessorToUse(classWords, fieldWords, field, elementFieldType, true);
         default:
             return null;
         }
