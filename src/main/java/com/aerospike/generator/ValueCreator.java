@@ -1,6 +1,5 @@
 package com.aerospike.generator;
 
-import java.awt.List;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -13,7 +12,6 @@ import java.time.LocalTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -66,9 +64,37 @@ import com.aerospike.generator.annotations.GenUuidProcessor;
 import com.aerospike.generator.annotations.Processor;
 
 /**
- * A {@code ValueCreator} is used to populate test data into objects of a single class. It is thread-safe and should be reused across
- * different instantiations of that class.
- * @param <T>
+ * A thread-safe value creator that populates test data into objects based on field annotations.
+ * 
+ * <p>This class analyzes a class's fields and their annotations to determine how to generate
+ * appropriate test data. It supports a wide variety of annotations including:</p>
+ * 
+ * <ul>
+ *   <li>{@link com.aerospike.generator.annotations.GenString GenString} - Generate strings</li>
+ *   <li>{@link com.aerospike.generator.annotations.GenNumber GenNumber} - Generate numbers</li>
+ *   <li>{@link com.aerospike.generator.annotations.GenDate GenDate} - Generate dates</li>
+ *   <li>{@link com.aerospike.generator.annotations.GenBoolean GenBoolean} - Generate booleans</li>
+ *   <li>{@link com.aerospike.generator.annotations.GenList GenList} - Generate lists</li>
+ *   <li>{@link com.aerospike.generator.annotations.GenSet GenSet} - Generate sets</li>
+ *   <li>{@link com.aerospike.generator.annotations.GenMagic GenMagic} - Intelligent field name-based generation</li>
+ *   <li>And many more...</li>
+ * </ul>
+ * 
+ * <p>ValueCreator instances are thread-safe and should be reused across multiple object
+ * instantiations. They are typically obtained from {@link ValueCreatorCache} to ensure
+ * efficient reuse.</p>
+ * 
+ * <h3>Usage Example</h3>
+ * <pre>{@code
+ * ValueCreator<Member> creator = ValueCreatorCache.getInstance().get(Member.class);
+ * Member member = new Member();
+ * creator.populate(member, Map.of("Key", 123L));
+ * }</pre>
+ * 
+ * <p>The populate method processes fields in two phases: first non-deferred fields,
+ * then deferred fields (such as GenExpression fields that may reference other fields).</p>
+ * 
+ * @param <T> The type of object this ValueCreator can populate
  */
 public class ValueCreator<T> {
     
@@ -77,6 +103,23 @@ public class ValueCreator<T> {
     private final Constructor<T> constructor;
     private final Class<T> clazz;
 
+    /**
+     * Creates a new ValueCreator for the specified class.
+     * 
+     * <p>This constructor analyzes all non-transient fields of the class and sets up
+     * appropriate processors based on field annotations. It also handles inheritance
+     * by creating a ValueCreator for the superclass if it's in a non-JDK package.</p>
+     * 
+     * <p>The processor selection follows this priority order:</p>
+     * <ol>
+     *   <li>Field-level annotations (e.g., @GenString, @GenNumber)</li>
+     *   <li>Class-level @GenMagic annotation</li>
+     *   <li>Class-level @GenString annotation (for String fields only)</li>
+     *   <li>Class-level @GenExpression annotation (for String fields only)</li>
+     * </ol>
+     * 
+     * @param clazz The class to create a ValueCreator for
+     */
     @SuppressWarnings("unchecked")
     public ValueCreator(Class<T> clazz) {
         this.clazz = clazz;
@@ -108,12 +151,29 @@ public class ValueCreator<T> {
         this.constructor = theConstructor;
     }
     
+    /**
+     * Verifies that the class has a no-argument constructor.
+     * 
+     * <p>Throws an exception if the class does not have a public no-argument constructor.
+     * This is required for the {@link #create()} method to work.</p>
+     * 
+     * @throws IllegalArgumentException if the class does not have a no-argument constructor
+     */
     public void requiresConstructor() {
         if (this.constructor == null) {
             throw new IllegalArgumentException("Class " + clazz + " does not have the required no-arg constructor");
         }
     }
     
+    /**
+     * Creates a new instance of type T using the no-argument constructor.
+     * 
+     * <p>This method requires that the class has a public no-argument constructor.
+     * Use {@link #requiresConstructor()} to check this before calling.</p>
+     * 
+     * @return A new instance of type T
+     * @throws IllegalArgumentException if the class cannot be instantiated
+     */
     public T create() {
         requiresConstructor();
         try {
@@ -124,10 +184,32 @@ public class ValueCreator<T> {
         }
     }
     
+    /**
+     * Creates a new instance and populates it with test data.
+     * 
+     * <p>This is a convenience method that combines {@link #create()} and
+     * {@link #populate(Object, Map)}. It creates a new parameter map that includes
+     * the object reference for expression evaluation.</p>
+     * 
+     * @param params Parameters to pass to processors (e.g., for GenExpression)
+     * @return A new populated instance
+     * @throws IllegalArgumentException if the object cannot be created or populated
+     */
     public T createAndPopulate(Map<String, Object> params) {
         return createAndPopulate(params, true);
     }
     
+    /**
+     * Creates a new instance and populates it with test data.
+     * 
+     * <p>This is a convenience method that combines {@link #create()} and
+     * {@link #populate(Object, Map, boolean)}.</p>
+     * 
+     * @param params Parameters to pass to processors (e.g., for GenExpression)
+     * @param createNewMap If true, creates a new parameter map with the object reference
+     * @return A new populated instance
+     * @throws IllegalArgumentException if the object cannot be created or populated
+     */
     public T createAndPopulate(Map<String, Object> params, boolean createNewMap) {
         T obj = create();
         try {
@@ -212,6 +294,16 @@ public class ValueCreator<T> {
         }
     }
     
+    /**
+     * Maps a Java field type to the corresponding FieldType enum.
+     * 
+     * <p>This method determines the appropriate FieldType based on the field's
+     * Java type, handling primitives, wrappers, collections, arrays, and special
+     * types like Date, LocalDate, UUID, etc.</p>
+     * 
+     * @param field The field to map
+     * @return The corresponding FieldType, or null if the type is not supported
+     */
     private FieldType mapFieldType(Field field) {
         Class<?> clazz = field.getType();
         if (clazz.isEnum()) {
@@ -273,14 +365,60 @@ public class ValueCreator<T> {
         }
         return null;
     }
+    /**
+     * Populates an object with test data using a simple key parameter.
+     * 
+     * <p>This is a convenience method that creates a parameter map with just the "Key"
+     * parameter set to the provided value. The key is commonly used in GenExpression
+     * annotations to create unique identifiers.</p>
+     * 
+     * @param object The object to populate
+     * @param key The key value to use in the parameter map
+     * @return The populated object (same instance)
+     * @throws IllegalArgumentException if population fails
+     * @throws IllegalAccessException if field access is denied
+     */
     public T populate(T object, long key) throws IllegalArgumentException, IllegalAccessException { 
         return this.populate(object, Map.of("Key", key));
     }
     
+    /**
+     * Populates an object with test data.
+     * 
+     * <p>This method processes all fields of the object using their configured processors.
+     * It creates a new parameter map that includes the object reference for expression
+     * evaluation.</p>
+     * 
+     * <p>Fields are processed in two phases:</p>
+     * <ol>
+     *   <li>Non-deferred fields (most annotations)</li>
+     *   <li>Deferred fields (GenExpression fields that may reference other fields)</li>
+     * </ol>
+     * 
+     * @param object The object to populate
+     * @param params Parameters to pass to processors (e.g., for GenExpression)
+     * @return The populated object (same instance)
+     * @throws IllegalArgumentException if population fails
+     * @throws IllegalAccessException if field access is denied
+     */
     public T populate(T object, Map<String, Object> params) throws IllegalArgumentException, IllegalAccessException {
         return this.populate(object, params, true);
     }
     
+    /**
+     * Populates an object with test data.
+     * 
+     * <p>This method processes all fields of the object using their configured processors.
+     * Fields are processed in two phases: non-deferred fields first, then deferred fields.</p>
+     * 
+     * @param object The object to populate
+     * @param params Parameters to pass to processors (e.g., for GenExpression)
+     * @param createNewMap If true, creates a new parameter map with the object reference
+     *                     for expression evaluation. If false, uses the provided map directly.
+     * @return The populated object (same instance)
+     * @throws IllegalArgumentException if population fails
+     * @throws IllegalAccessException if field access is denied
+     */
     public T populate(T object, Map<String, Object> params, boolean createNewMap) throws IllegalArgumentException, IllegalAccessException {
         Map<String, Object> expressionParams = params;
         if (createNewMap) {
