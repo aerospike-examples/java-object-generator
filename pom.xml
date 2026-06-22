@@ -17,11 +17,6 @@
 	</properties>
 
   <dependencies>
-      <dependency>
-        <groupId>com.aerospike</groupId>
-        <artifactId>aerospike-client-jdk8</artifactId>
-        <version>${aerospike-client.version}</version>
-      </dependency>
 		<!-- https://mvnrepository.com/artifact/com.github.javafaker/javafaker -->
 		<dependency>
 		    <groupId>com.github.javafaker</groupId>
