@@ -249,7 +249,8 @@ public class GenMagicProcessor implements Processor {
         }
         // Phone must be checked before address patterns to avoid conflicts
         else if (StringUtils.matches(fieldWords, allowPlurals, Set.of("phone", "fax", "mobile", "cell", "direct"), Set.of("number", "num", "no")) ||
-                StringUtils.matches(fieldWords, allowPlurals, Set.of("phone", "fax", "mobile", "cell"))) {
+                StringUtils.matches(fieldWords, allowPlurals, Set.of("phone", "fax", "mobile", "cell")) ||
+                StringUtils.isLastWordOneOf(fieldWords, Set.of("phone", "fax", "mobile", "cell"), allowPlurals)) {
             return new GenPhoneNumberProcessor(PhoneNumType.PHONE, targetFieldType, field);
         }
         else if (StringUtils.matches(fieldWords, Set.of("account", "portfolio", "journal"), Set.of("name"))) {
@@ -294,6 +295,9 @@ public class GenMagicProcessor implements Processor {
         }
         else if (StringUtils.isLastWordOneOf(fieldWords,  Set.of("country", "cntry"), allowPlurals)) {
             return new GenAddressProcessor(AddressPart.COUNTRY, targetFieldType);
+        }
+        else if (StringUtils.matches(fieldWords, allowPlurals, Set.of("country", "cntry"), Set.of("cde", "code"))) {
+            return new GenAddressProcessor(AddressPart.COUNTRY_CODE, targetFieldType);
         }
         else if ((StringUtils.matches(fieldWords, allowPlurals, Set.of("zip", "post", "postal"), Set.of("code", "cd")) ||
                 (StringUtils.matches(fieldWords, allowPlurals, Set.of("zip", "zipcode", "postcode", "postalcode"))))) {
@@ -575,11 +579,11 @@ public class GenMagicProcessor implements Processor {
         // ===== COORDINATE FIELDS =====
         // Latitude fields - realistic latitude ranges (-90 to 90)
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("latitude", "lat"), allowPlurals)) {
-            return new GenNumberProcessor(-90, 90, targetFieldType);
+            return new GenNumberProcessor(-90_000_000, 90_000_000, 1, 1_000_000, targetFieldType);
         }
         // Longitude fields - realistic longitude ranges (-180 to 180)
         else if (StringUtils.isFirstOrLastWordOneOf(fieldWords, Set.of("longitude", "lng", "lon"), allowPlurals)) {
-            return new GenNumberProcessor(-180, 180, targetFieldType);
+            return new GenNumberProcessor(-180_000_000, 180_000_000, 1, 1_000_000, targetFieldType);
         }
         
         // ===== TIME/AGE FIELDS =====
@@ -658,6 +662,14 @@ public class GenMagicProcessor implements Processor {
             return new GenNumberProcessor(1, 100, targetFieldType);
         }
         
+        if (targetFieldType == FieldType.LONG) {
+            Processor dateProcessor = getDateProcessorToUse(classWords, fieldWords, field, targetFieldType, allowPlurals);
+            if (dateProcessor != null) {
+                return dateProcessor;
+            
+            }
+        }
+
         // Default fallback - general numeric range (positive only)
         return new GenNumberProcessor(1, 1000, targetFieldType);
     }

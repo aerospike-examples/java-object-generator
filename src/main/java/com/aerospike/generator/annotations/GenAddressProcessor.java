@@ -10,12 +10,14 @@ import com.github.javafaker.Faker;
 public class GenAddressProcessor implements Processor {
     private final Address address = Faker.instance().address();
     private final AddressPart part;
+    private final FieldType fieldType;
     public GenAddressProcessor(GenAddress addr, FieldType fieldType, Field field) {
         this(addr.value(), fieldType);
     }
     
     public GenAddressProcessor(AddressPart part, FieldType fieldType) {
         this.part = part;
+        this.fieldType = fieldType;
         if (!supports(fieldType) ) {
             throw new IllegalArgumentException("Unsupported field type " + fieldType);
         }
@@ -29,8 +31,8 @@ public class GenAddressProcessor implements Processor {
         case COUNTRY:           return address.country();
         case COUNTRY_CODE:      return address.countryCode();
         case FULL_ADDRESS:      return address.fullAddress();
-        case LATITUDE:          return address.latitude();
-        case LONGITUDE:         return address.longitude();
+        case LATITUDE:          return coordinate(address.latitude());
+        case LONGITUDE:         return coordinate(address.longitude());
         case SECONDARY:         return address.secondaryAddress();
         case STATE:             return address.state();
         case STATE_ABBR:        return address.stateAbbr();
@@ -44,7 +46,21 @@ public class GenAddressProcessor implements Processor {
         default:                return address.fullAddress();
         }
     }
+    
+    private Object coordinate(String coordinateValue) {
+        if (fieldType == FieldType.DOUBLE) {
+            return Double.parseDouble(coordinateValue);
+        }
+        else if (fieldType == FieldType.FLOAT) {
+            return Float.parseFloat(coordinateValue);
+        }
+        return coordinateValue;
+    }
+    
     public boolean supports(FieldType fieldType) {
+        if (part == AddressPart.LATITUDE || part == AddressPart.LONGITUDE) {
+            return fieldType == FieldType.STRING || fieldType == FieldType.DOUBLE || fieldType == FieldType.FLOAT;
+        }
         return fieldType == FieldType.STRING;
     }
 }

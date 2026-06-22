@@ -8,6 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -334,6 +335,21 @@ public class ExpressionParser {
                     }
                     padded.append(strValue);
                     return padded.toString();
+
+                case "RANDOM":
+                    if (args.length != 2) {
+                        throw new IllegalArgumentException("RANDOM() takes exactly 2 arguments: minValue(incl), maxValue(excl)");
+                    }
+                    Object minVal = args[0].accept(this);
+                    Object maxVal = args[1].accept(this);
+                    
+                    long minValue = Long.parseLong(String.valueOf(minVal));
+                    long maxValue = Long.parseLong(String.valueOf(maxVal));
+                    if (maxValue <= minValue) {
+                        throw new IllegalArgumentException("RANDOM() minimum value must be less than maximum value");
+                    }
+                    long randValue = ThreadLocalRandom.current().nextLong(minValue, maxValue);
+                    return Long.toString(randValue);
 
                 case "UUID":
                     if (args.length == 0) {

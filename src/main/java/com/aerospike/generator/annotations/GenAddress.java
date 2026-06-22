@@ -10,7 +10,9 @@ import java.lang.annotation.Target;
  * 
  * <p>This annotation can be applied to fields of type {@code String} to generate
  * various parts of addresses, including street addresses, cities, states, countries,
- * zip codes, and geographic coordinates.</p>
+ * zip codes, and geographic coordinates. For {@link AddressPart#LATITUDE} and
+ * {@link AddressPart#LONGITUDE}, {@code Double} and {@code Float} fields are also
+ * supported.</p>
  * 
  * <h3>Usage Examples</h3>
  * <pre>{@code
@@ -32,7 +34,7 @@ import java.lang.annotation.Target;
  * 
  * // Geographic coordinates
  * @GenAddress(AddressPart.LATITUDE)
- * private String latitude;
+ * private Double latitude;
  * }</pre>
  * 
  * <p><b>Note:</b> When used with {@link GenMagic}, fields with names containing
@@ -56,9 +58,9 @@ public @interface GenAddress {
         COUNTRY_CODE,
         /** Complete address (e.g., "123 Main St, New York, NY 10001") */
         FULL_ADDRESS,
-        /** Latitude coordinate as string */
+        /** Latitude coordinate (string, double, or float) */
         LATITUDE,
-        /** Longitude coordinate as string */
+        /** Longitude coordinate (string, double, or float) */
         LONGITUDE,
         /** Secondary address line (e.g., "Apt 4B") */
         SECONDARY,
